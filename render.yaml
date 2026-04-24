@@ -3,7 +3,7 @@ services:
     name: sinyalci-backend
     env: docker
     dockerfilePath: ./backend/Dockerfile
-        cdokdockerext: backend
+        cdokdockerContext: backend
     region: frankfurt
     plan: free
     healthCheckPath: /health
