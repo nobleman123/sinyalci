@@ -4060,7 +4060,7 @@ const NEXUS = (() => {
   };
 
   let alertCfg = { ...DEFAULT_ALERT_CFG, ...JSON.parse(localStorage.getItem(LS_ALERT_CFG) || '{}') };
-  let backendUrl = localStorage.getItem('nexus_backendUrl') || 'http://localhost:4000';
+  let backendUrl = localStorage.getItem('nexus_backendUrl') || 'https://sinyalci-backend.onrender.com';
   let userId = localStorage.getItem('nexus_userId');
   let backendConnected = false;
 

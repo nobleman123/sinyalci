@@ -20,6 +20,27 @@ services:
         value: production
       - key: JWT_SECRET
         value: "super_secret_jwt_key_for_sinyalci_123!"
+      - key: VAPID_PUBLIC_KEY
+        value: "BLh3lNsf8SGAJt1-3HgpN4JJxkwkeuHEu2ym83C5SQJndOG0GXMLkeZxbDVunwY9Mu4C3MJsJafz_dIbwVztAug"
+      - key: VAPID_PRIVATE_KEY
+        value: "GsPQXn3ORqCmM7TD5Hi7WZnzMqjo4ynOmvhKdIYvkT4"
+      - key: VAPID_SUBJECT
+        value: "mailto:admin@nexus-signal.app"
+      - key: FRONTEND_ORIGIN
+        value: "https://sinyalci-frontend.onrender.com"
+
+  - type: web
+    name: sinyalci-frontend
+    env: static
+    staticPublishPath: ./frontend
+    region: frankfurt
+    plan: free
+
+  - type: redis
+    name: sinyalci-redis
+    region: frankfurt
+    plan: free
+    maxmemoryPolicy: noeviction
 
 databases:
   - name: sinyalci-db
@@ -27,9 +48,3 @@ databases:
     user: sinyalci_user
     region: frankfurt
     plan: free
-
-redis:
-  - name: sinyalci-redis
-    region: frankfurt
-    plan: free
-    maxmemoryPolicy: noeviction
