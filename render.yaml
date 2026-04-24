@@ -34,7 +34,7 @@ services:
     env: static
     staticPublishPath: ./frontend
     
-    plan: free
+  
 
   - type: redis
     name: sinyalci-redis
