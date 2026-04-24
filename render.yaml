@@ -41,9 +41,9 @@ services:
     region: frankfurt
     plan: free
     maxmemoryPolicy: noeviction
-        ipAllowList:
-              - cidrBlock: 0.0.0.0/0
-                      description: everyone
+    ipAllowList:
+      - cidrBlock: 0.0.0.0/0
+        description: everyone
 
 databases:
   - name: sinyalci-db
