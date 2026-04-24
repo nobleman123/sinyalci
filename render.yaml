@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: sinyalci-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    region: frankfurt
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sinyalci-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: sinyalci-redis
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        value: "super_secret_jwt_key_for_sinyalci_123!"
+
+databases:
+  - name: sinyalci-db
+    databaseName: sinyalci
+    user: sinyalci_user
+    region: frankfurt
+    plan: free
+
+redis:
+  - name: sinyalci-redis
+    region: frankfurt
+    plan: free
+    maxmemoryPolicy: noeviction
