@@ -42,7 +42,7 @@ services:
     plan: free
     maxmemoryPolicy: noeviction
     ipAllowList:
-      - cidrBlock: 0.0.0.0/0
+      - source: 0.0.0.0/0
         description: everyone
 
 databases:
