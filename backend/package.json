@@ -1,0 +1,44 @@
+{
+  "name": "nexus-backend",
+  "version": "7.0.0",
+  "description": "NEXUS v7 Crypto Signal Backend",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "vapid:generate": "tsx src/utils/generateVapid.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@prisma/client": "^5.14.0",
+    "axios": "^1.7.2",
+    "bullmq": "^5.7.14",
+    "fastify": "^4.27.0",
+    "ioredis": "^5.4.1",
+    "ioredis-mock": "^8.13.1",
+    "node-cron": "^3.0.3",
+    "uuid": "^10.0.0",
+    "web-push": "^3.6.7",
+    "winston": "^3.13.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/ioredis-mock": "^8.2.7",
+    "@types/node": "^20.14.2",
+    "@types/node-cron": "^3.0.11",
+    "@types/uuid": "^10.0.0",
+    "@types/web-push": "^3.6.3",
+    "prisma": "^5.14.0",
+    "tsx": "^4.15.1",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
