@@ -33,7 +33,7 @@ services:
     name: sinyalci-frontend
     env: static
     staticPublishPath: ./frontend
-    region: frankfurt
+    
     plan: free
 
   - type: redis
@@ -41,6 +41,7 @@ services:
     region: frankfurt
     plan: free
     maxmemoryPolicy: noeviction
+        ipAllowList: []
 
 databases:
   - name: sinyalci-db
