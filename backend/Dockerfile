@@ -12,8 +12,7 @@ RUN npm ci
 COPY . .
 
 # Generate Prisma Client
-RUN ls -la . && ls -la prisma
-RUN npx prisma generate --schema=./prisma/schema.prisma
+RUN npx prisma generate
 
 # Build TypeScript
 RUN npm run build
