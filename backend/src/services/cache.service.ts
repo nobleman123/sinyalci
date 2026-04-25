@@ -3,7 +3,7 @@ import RedisMock from 'ioredis-mock';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
-let _client: Redis | RedisMock | null = null;
+let _client: Redis | any = null;
 
 function getClient(): any {
   if (_client) return _client;
@@ -17,7 +17,7 @@ function getClient(): any {
     lazyConnect: false,
     enableOfflineQueue: false,
   });
-  _client.on('error', err => logger.error('Redis error', { error: err.message }));
+  _client.on('error', (err: any) => logger.error('Redis error', { error: err.message }));
   _client.on('connect', () => logger.info('✅ Redis connected'));
   return _client;
 }
