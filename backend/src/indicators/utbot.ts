@@ -3,13 +3,14 @@ import { calcATR, toHeikinAshi } from './core';
 
 export interface UTBotResult {
   trail: number | null;
-  signal: 'BUY' | 'SELL' | null;
+  rawSignal: 'BUY' | 'SELL' | null;
   direction: 1 | -1 | 0;
 }
 
 /**
  * UT Bot — ATR trailing stop signal.
- * CLOSED CANDLE ONLY (caller must ensure last candle is closed).
+ * Produces raw signals. Quality filtering (Q-UT) is handled in the signal engine.
+ * CLOSED CANDLE ONLY.
  */
 export function calcUTBot(
   candles: Candle[],
@@ -26,7 +27,7 @@ export function calcUTBot(
 
   for (let i = 0; i < src.length; i++) {
     if (i < atrPeriod || atr[i] == null) {
-      out[i] = { trail: null, signal: null, direction: 0 };
+      out[i] = { trail: null, rawSignal: null, direction: 0 };
       continue;
     }
 
@@ -47,11 +48,16 @@ export function calcUTBot(
       trail = close + nLoss;
     }
 
-    let signal: 'BUY' | 'SELL' | null = null;
-    if (prevClose <= prevTrail && close > trail) { signal = 'BUY';  direction = 1;  }
-    else if (prevClose >= prevTrail && close < trail) { signal = 'SELL'; direction = -1; }
+    let rawSignal: 'BUY' | 'SELL' | null = null;
+    if (prevClose <= prevTrail && close > trail) { 
+      rawSignal = 'BUY';  
+      direction = 1;  
+    } else if (prevClose >= prevTrail && close < trail) { 
+      rawSignal = 'SELL'; 
+      direction = -1; 
+    }
 
-    out[i] = { trail, signal, direction };
+    out[i] = { trail, rawSignal, direction };
   }
 
   return out;

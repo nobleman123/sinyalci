@@ -108,6 +108,18 @@ export function calcBB(closes: number[], period = 20, mult = 2): (BBResult | nul
   return out;
 }
 
+export function calcBBPercentile(bb: (BBResult | null)[], lookback = 100): (number | null)[] {
+  const out: (number | null)[] = new Array(bb.length).fill(null);
+  for (let i = lookback; i < bb.length; i++) {
+    const slice = bb.slice(i - lookback + 1, i + 1).filter((v): v is BBResult => v !== null);
+    if (slice.length < lookback / 2) continue;
+    const currentWidth = bb[i]!.width;
+    const count = slice.filter(v => v.width < currentWidth).length;
+    out[i] = (count / slice.length) * 100;
+  }
+  return out;
+}
+
 // ── ADX ──────────────────────────────────────────────────────────────
 export function calcADX(candles: Candle[], period = 14): (number | null)[] {
   const out: (number | null)[] = new Array(candles.length).fill(null);
@@ -185,6 +197,26 @@ export function toHeikinAshi(candles: Candle[]): Candle[] {
     const open  = i === 0 ? (c.open + c.close) / 2 : (candles[i - 1].open + candles[i - 1].close) / 2;
     return { ...c, open, high: Math.max(c.high, open, close), low: Math.min(c.low, open, close), close };
   });
+}
+
+// ── Candle Quality ───────────────────────────────────────────────────
+export interface CandleQuality {
+  bodyRatio: number;
+  upperWickRatio: number;
+  lowerWickRatio: number;
+}
+
+export function getCandleQuality(c: Candle): CandleQuality {
+  const fullRange = Math.max(c.high - c.low, 1e-9);
+  const bodySize  = Math.abs(c.close - c.open);
+  const upperWick = c.high - Math.max(c.open, c.close);
+  const lowerWick = Math.min(c.open, c.close) - c.low;
+
+  return {
+    bodyRatio: bodySize / fullRange,
+    upperWickRatio: upperWick / fullRange,
+    lowerWickRatio: lowerWick / fullRange
+  };
 }
 
 // ── Clamp ─────────────────────────────────────────────────────────────

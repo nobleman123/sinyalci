@@ -4,11 +4,12 @@ import { calcATR } from './core';
 export interface SuperTrendResult {
   value: number | null;
   direction: 1 | -1 | 0;
-  signal: 'BUY' | 'SELL' | null;
+  rawSignal: 'BUY' | 'SELL' | null;
 }
 
 /**
  * SuperTrend indicator — ATR-based trailing trend.
+ * Used primarily as a trend filter.
  */
 export function calcSuperTrend(
   candles: Candle[],
@@ -24,7 +25,7 @@ export function calcSuperTrend(
 
   for (let i = 0; i < candles.length; i++) {
     if (i < period || atr[i] == null) {
-      out[i] = { value: null, direction: 0, signal: null };
+      out[i] = { value: null, direction: 0, rawSignal: null };
       continue;
     }
 
@@ -41,7 +42,7 @@ export function calcSuperTrend(
     if (candles[i].close > finalUpper!) direction = 1;
     else if (candles[i].close < finalLower!) direction = -1;
 
-    const signal: 'BUY' | 'SELL' | null =
+    const rawSignal: 'BUY' | 'SELL' | null =
       old !== direction
         ? direction === 1 ? 'BUY' : direction === -1 ? 'SELL' : null
         : null;
@@ -49,7 +50,7 @@ export function calcSuperTrend(
     out[i] = {
       value: direction === 1 ? finalLower : finalUpper,
       direction,
-      signal,
+      rawSignal,
     };
   }
 

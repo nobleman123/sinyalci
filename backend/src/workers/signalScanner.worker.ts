@@ -42,12 +42,12 @@ function meetsUserThresholds(result: SignalResult, settings: any): boolean {
   try { indicators = JSON.parse(settings.indicators); } catch {}
   if (!indicators || indicators.length === 0) indicators = ['UT','VRT','SUPER']; // default
 
-  if (indicators.includes('UT') && result.rawIndicators.ut === targetDir) matchCount++;
-  if (indicators.includes('VRT') && result.rawIndicators.vrt === targetDir) matchCount++;
-  if (indicators.includes('SUPER') && result.rawIndicators.st === targetDir) matchCount++;
-  if (indicators.includes('EMA') && result.rawIndicators.ema === targetDir) matchCount++;
-  if (indicators.includes('AMC') && (targetDir === 1 ? result.rawIndicators.amc >= 55 : result.rawIndicators.amc <= 45)) matchCount++;
-  if (indicators.includes('SEQ') && result.rawIndicators.seqScore >= 65) matchCount++;
+  if (indicators.includes('UT') && result.rawIndicators.utRaw === targetDir) matchCount++;
+  if (indicators.includes('VRT') && result.rawIndicators.vrtConfirmed === targetDir) matchCount++;
+  if (indicators.includes('SUPER') && result.rawIndicators.stTrend === targetDir) matchCount++;
+  if (indicators.includes('EMA') && result.rawIndicators.emaTrend === targetDir) matchCount++;
+  if (indicators.includes('AMC') && (targetDir === 1 ? result.rawIndicators.amcSlope > 0 : result.rawIndicators.amcSlope < 0)) matchCount++;
+  if (indicators.includes('SEQ') && result.rawIndicators.seqScore >= 70) matchCount++;
 
   // Sleeping coin is an exception to the strict minMatch as it's a pre-breakout setup
   if (result.signal.includes('SLEEPING') && matchCount >= Math.max(1, settings.minMatch - 1)) return true;
@@ -168,10 +168,10 @@ export async function scanForUser(userId: string, force: boolean = false) {
 
         // ── Save IndicatorSnapshot ────────────────────────────────────
         const comboKey = [
-          result.rawIndicators.ut  !== 0 ? 'UT'  : '',
-          result.rawIndicators.vrt !== 0 ? 'VRT' : '',
-          result.rawIndicators.st  !== 0 ? 'ST'  : '',
-          result.rawIndicators.seqScore >= 65 ? 'SEQ' : '',
+          result.rawIndicators.utRaw  !== 0 ? 'UT'  : '',
+          result.rawIndicators.vrtConfirmed !== 0 ? 'VRT' : '',
+          result.rawIndicators.stTrend  !== 0 ? 'ST'  : '',
+          result.rawIndicators.seqScore >= 70 ? 'SEQ' : '',
           result.marketRegime !== 'MIXED' ? 'MKT' : '',
         ].filter(Boolean).sort().join('+') || 'NONE';
 
@@ -180,11 +180,11 @@ export async function scanForUser(userId: string, force: boolean = false) {
             signalEventId: signalEvent.id,
             symbol, timeframe: tf,
             direction:     result.direction,
-            utDirection:   result.rawIndicators.ut,
-            vrtDirection:  result.rawIndicators.vrt,
-            stDirection:   result.rawIndicators.st,
-            emaTrend:      result.rawIndicators.ema,
-            amcScore:      result.rawIndicators.amc,
+            utDirection:   result.rawIndicators.utRaw,
+            vrtDirection:  result.rawIndicators.vrtConfirmed,
+            stDirection:   result.rawIndicators.stTrend,
+            emaTrend:      result.rawIndicators.emaTrend,
+            amcScore:      result.amcScore,
             seqScore:      result.rawIndicators.seqScore,
             lateRisk:      result.lateRisk,
             rr:            result.rr,
