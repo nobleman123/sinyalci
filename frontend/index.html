@@ -992,6 +992,12 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
         <div class="tog" data-tog="SEQ" data-color="prep">
           <span class="tog-dot"></span>SEQ
         </div>
+        <div class="tog" data-tog="HP" data-color="prep2" style="border-color:rgba(100,149,237,0.4)">
+          <span class="tog-dot" style="background:#6495ED"></span>HP-CH
+        </div>
+        <div class="tog" data-tog="NW" data-color="bull" style="border-color:rgba(45,210,4,0.4)">
+          <span class="tog-dot" style="background:#2DD204"></span>NW-ENV
+        </div>
       </div>
 
       <!-- Chart -->
@@ -1820,6 +1826,19 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
       </div>
     </div>
 
+    <div class="setting-group" style="border:1px solid rgba(100,149,237,0.25)">
+      <div class="setting-group-title" style="color:#6495ED">⚡ HP Channel (Hodrick-Prescott)</div>
+      <div class="setting-row"><label>Fast Period</label><input type="number" id="cfg-hpFast" min="4" max="50" step="1" value="21"></div>
+      <div class="setting-row"><label>Slow Period</label><input type="number" id="cfg-hpSlow" min="48" max="300" step="1" value="100"></div>
+    </div>
+
+    <div class="setting-group" style="border:1px solid rgba(45,210,4,0.2)">
+      <div class="setting-group-title" style="color:#2DD204">🌀 Nadaraya-Watson Envelope</div>
+      <div class="setting-row"><label>Bandwidth (h)</label><input type="number" id="cfg-nwBandwidth" min="1" max="30" step="0.5" value="8"></div>
+      <div class="setting-row"><label>Çarpan (mult)</label><input type="number" id="cfg-nwMult" min="0.5" max="8" step="0.1" value="3"></div>
+    </div>
+
+
     <div class="setting-group">
       <div class="setting-group-title">Akıllı Sinyal Filtresi</div>
       <div class="setting-row"><label>Minimum SEQ</label><input type="number" id="cfg-minSeq" min="50" max="95" step="1" value="76"></div>
@@ -1861,14 +1880,17 @@ const DEFAULT_CFG = {
   bbPeriod: 20, bbMult: 2,
   onlyStrong: true, showWarn: false, markerSize: 2, theme: 'dark',
   minSeq: 76, strongSeq: 86, minRR: 1.8, strongRR: 2.2,
-  maxLate: 34, strongLate: 24, cooldownBars: 14
+  maxLate: 34, strongLate: 24, cooldownBars: 14,
+  hpFast: 21, hpSlow: 100,
+  nwBandwidth: 8, nwMult: 3
 };
 
 let cfg = { ...DEFAULT_CFG, ...JSON.parse(localStorage.getItem('nexusCfg') || '{}') };
 
 const TOGGLE_DEFAULTS = {
   FINAL: true, UT: false, VRT: false, SUPER: false,
-  EMA: true, VWAP: true, BB: false, ENTRY: true, SLTP: true, SEQ: false
+  EMA: true, VWAP: true, BB: false, ENTRY: true, SLTP: true, SEQ: false,
+  HP: false, NW: false
 };
 
 let toggles = { ...TOGGLE_DEFAULTS, ...JSON.parse(localStorage.getItem('nexusToggles') || '{}') };
@@ -2196,6 +2218,133 @@ function calcSEQ(candles, atr) {
   return out;
 }
 
+// ═══════════════════════════════════════════
+// HODRICK-PRESCOTT CHANNEL
+// ═══════════════════════════════════════════
+function calcHPFilter(values, lambda) {
+  const n = values.length;
+  if (n < 4) return values.slice();
+  // Solve using tridiagonal system (Whittaker smoother / HP-filter)
+  const a = new Array(n).fill(0);
+  const b = new Array(n).fill(0);
+  const c = new Array(n).fill(0);
+  const out = values.slice();
+  a[0] = 1 + lambda; b[0] = -2 * lambda; c[0] = lambda;
+  for (let i = 1; i < n - 3; i++) { a[i] = 6*lambda+1; b[i] = -4*lambda; c[i] = lambda; }
+  a[1] = 5*lambda+1;
+  a[n-1] = 1+lambda;    a[n-2] = 5*lambda+1;
+  b[n-2] = -2*lambda;   b[n-1] = 0;
+  c[n-2] = 0;           c[n-1] = 0;
+  // Forward sweep
+  let H1=0,H2=0,H3=0,H4=0,H5=0,HH1=0,HH2=0,HH3=0,HH5=0;
+  for (let i = 0; i < n; i++) {
+    const Z = a[i] - H4*H1 - HH5*HH2;
+    if (Z === 0) break;
+    const HB = b[i]; HH1=H1; H1=(HB-H4*H2)/Z; b[i]=H1;
+    const HC = c[i]; HH2=H2; H2=HC/Z; c[i]=H2;
+    a[i]=(out[i]-HH3*HH5-H3*H4)/Z;
+    HH3=H3; H3=a[i]; H4=HB-H5*HH1; HH5=H5; H5=HC;
+  }
+  // Back sweep
+  H2=0; H1=a[n-1]; out[n-1]=H1;
+  for (let i=n-2; i>=0; i--) { out[i]=a[i]-b[i]*H1-c[i]*H2; H2=H1; H1=out[i]; }
+  return out;
+}
+
+function calcHPChannel(candles, fastPer=21, slowPer=100) {
+  const closes = candles.map(c=>c.close);
+  const n = closes.length;
+  if (n < slowPer) return closes.map(()=>null);
+
+  const lambFast = 0.0625 / Math.pow(Math.sin(Math.PI/fastPer), 4);
+  const lambSlow = 0.0625 / Math.pow(Math.sin(Math.PI/slowPer), 4);
+
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    // Use rolling window of slowPer bars
+    const start = Math.max(0, i - slowPer + 1);
+    const win   = closes.slice(start, i+1);
+    const rev   = win.slice().reverse(); // newest first for HP filter
+
+    const fast  = calcHPFilter(rev, lambFast);
+    const slow  = calcHPFilter(fast, lambSlow);
+
+    const fastVal = fast[0];
+    const slowVal = slow[0];
+
+    // Deviation channel
+    let disp = 0;
+    const len = fast.length;
+    for (let j=0; j<len; j++) disp += (fast[j]-slow[j])**2;
+    disp /= Math.max(1, len-1);
+    const dev = Math.sqrt(disp) * 2;
+
+    out.push({
+      fast: fastVal,
+      slow: slowVal,
+      upper: slowVal + dev,
+      lower: slowVal - dev,
+      direction: fastVal > slowVal ? 1 : fastVal < slowVal ? -1 : 0,
+      rawSignal: null
+    });
+    // Signal: crossover of fast vs slow
+    if (i > 0 && out[i-1]) {
+      const prev = out[i-1];
+      if (prev.direction <= 0 && out[i].direction === 1) out[i].rawSignal = 'BUY';
+      if (prev.direction >= 0 && out[i].direction === -1) out[i].rawSignal = 'SELL';
+    }
+  }
+  // Pad start with nulls
+  const padded = new Array(Math.max(0, n - out.length)).fill(null);
+  return [...padded, ...out];
+}
+
+// ═══════════════════════════════════════════
+// NADARAYA-WATSON ENVELOPE
+// ═══════════════════════════════════════════
+function calcNWEnvelope(candles, bandwidth=8, mult=3) {
+  const closes = candles.map(c=>c.close);
+  const n = closes.length;
+  const lookback = Math.min(499, n-1);
+  const out = new Array(n).fill(null);
+
+  // Gaussian kernel
+  const gauss = (x, h) => Math.exp(-(x*x)/(2*h*h));
+
+  // Compute NW estimate at each bar using fixed endpoint (no repainting mode)
+  for (let i = lookback; i < n; i++) {
+    let sum = 0, sumW = 0;
+    for (let j = 0; j <= lookback && j <= i; j++) {
+      const w = gauss(j, bandwidth);
+      sum  += closes[i-j] * w;
+      sumW += w;
+    }
+    const nwVal = sumW > 0 ? sum / sumW : closes[i];
+    out[i] = { nw: nwVal, upper: null, lower: null, rawSignal: null };
+  }
+
+  // Compute MAE for envelope
+  let sae = 0; let saeCount = 0;
+  for (let i = lookback; i < n; i++) {
+    if (out[i]) { sae += Math.abs(closes[i] - out[i].nw); saeCount++; }
+  }
+  const mae = saeCount > 0 ? (sae / saeCount) * mult : 0;
+
+  for (let i = lookback; i < n; i++) {
+    if (out[i]) {
+      out[i].upper = out[i].nw + mae;
+      out[i].lower = out[i].nw - mae;
+      // Crossing signals
+      if (i > lookback && out[i-1]) {
+        const prevC = closes[i-1], curC = closes[i];
+        if (prevC >= out[i-1].lower && curC < out[i].lower) out[i].rawSignal = 'BUY'; // price falls below lower → bounce
+        if (prevC <= out[i-1].upper && curC > out[i].upper) out[i].rawSignal = 'SELL';
+      }
+    }
+  }
+  return out;
+}
+
 function buildFinalAnalysis(candles, utArr, vrtArr, stArr, amcArr, seqArr, atrArr) {
   const out = new Array(candles.length).fill(null);
   const closes = candles.map(c => c.close);
@@ -2439,6 +2588,8 @@ async function loadChart(symbol, tf) {
     const amcArr   = calcAMC(candles);
     const seqArr   = calcSEQ(candles, atr14);
     const finalArr = buildFinalAnalysis(candles, utArr, vrtArr, stArr, amcArr, seqArr, atr14);
+    const hpArr    = toggles.HP ? calcHPChannel(candles, cfg.hpFast, cfg.hpSlow) : [];
+    const nwArr    = toggles.NW ? calcNWEnvelope(candles, cfg.nwBandwidth, cfg.nwMult) : [];
 
     // Set candles
     state.candleSeries.setData(candles);
@@ -2513,12 +2664,79 @@ async function loadChart(symbol, tf) {
       state.series.bb = [bbUpper, bbMid, bbLower];
     }
 
+    // ── Hodrick-Prescott Channel
+    if (toggles.HP && hpArr.length) {
+      const hpFastLine = addLineSeries(state.chart, {
+        color: 'rgba(255,255,255,0.85)', lineWidth: 1.5,
+        title: 'HP Fast', priceLineVisible: false, lastValueVisible: false
+      });
+      const hpSlowLine = addLineSeries(state.chart, {
+        color: 'rgba(100,149,237,0.85)', lineWidth: 2.5,
+        title: 'HP Slow', priceLineVisible: false, lastValueVisible: false
+      });
+      const hpUpperLine = addLineSeries(state.chart, {
+        color: 'rgba(150,150,150,0.4)', lineWidth: 1, lineStyle: 3,
+        title: 'HP Upper', priceLineVisible: false, lastValueVisible: false
+      });
+      const hpLowerLine = addLineSeries(state.chart, {
+        color: 'rgba(150,150,150,0.4)', lineWidth: 1, lineStyle: 3,
+        title: 'HP Lower', priceLineVisible: false, lastValueVisible: false
+      });
+      hpFastLine.setData(hpArr.map((h,i) => h ? {time:candles[i].time, value:h.fast} : null).filter(Boolean));
+      hpSlowLine.setData(hpArr.map((h,i) => h ? {time:candles[i].time, value:h.slow} : null).filter(Boolean));
+      hpUpperLine.setData(hpArr.map((h,i) => h?.upper != null ? {time:candles[i].time, value:h.upper} : null).filter(Boolean));
+      hpLowerLine.setData(hpArr.map((h,i) => h?.lower != null ? {time:candles[i].time, value:h.lower} : null).filter(Boolean));
+      state.series.hp = [hpFastLine, hpSlowLine, hpUpperLine, hpLowerLine];
+    }
+
+    // ── Nadaraya-Watson Envelope
+    if (toggles.NW && nwArr.length) {
+      const nwLine = addLineSeries(state.chart, {
+        color: 'rgba(255,255,255,0.5)', lineWidth: 1.5, lineStyle: 0,
+        title: 'NW', priceLineVisible: false, lastValueVisible: false
+      });
+      const nwUpperLine = addLineSeries(state.chart, {
+        color: 'rgba(45,210,4,0.7)', lineWidth: 1.5,
+        title: 'NW Upper', priceLineVisible: false, lastValueVisible: false
+      });
+      const nwLowerLine = addLineSeries(state.chart, {
+        color: 'rgba(210,4,45,0.7)', lineWidth: 1.5,
+        title: 'NW Lower', priceLineVisible: false, lastValueVisible: false
+      });
+      nwLine.setData(nwArr.map((e,i) => e ? {time:candles[i].time, value:e.nw} : null).filter(Boolean));
+      nwUpperLine.setData(nwArr.map((e,i) => e?.upper != null ? {time:candles[i].time, value:e.upper} : null).filter(Boolean));
+      nwLowerLine.setData(nwArr.map((e,i) => e?.lower != null ? {time:candles[i].time, value:e.lower} : null).filter(Boolean));
+      state.series.nw = [nwLine, nwUpperLine, nwLowerLine];
+    }
+
     // ── Markers
     const allMarkers = [];
     if (toggles.UT)    allMarkers.push(...buildUTMarkers(candles, utArr, amcArr, seqArr));
     if (toggles.VRT)   allMarkers.push(...buildVRTMarkers(candles, vrtArr, amcArr, seqArr));
     if (toggles.SUPER) allMarkers.push(...buildSTMarkers(candles, stArr));
     if (toggles.FINAL) allMarkers.push(...buildFinalMarkers(candles, finalArr));
+    // HP crossover markers
+    if (toggles.HP && hpArr.length) {
+      for (let i = 1; i < candles.length; i++) {
+        const h = hpArr[i]; if (!h?.rawSignal) continue;
+        allMarkers.push({ time: candles[i].time,
+          position: h.rawSignal === 'BUY' ? 'belowBar' : 'aboveBar',
+          color: h.rawSignal === 'BUY' ? '#2DD204' : '#D2042D',
+          shape: h.rawSignal === 'BUY' ? 'arrowUp' : 'arrowDown',
+          text: h.rawSignal === 'BUY' ? 'HP AL' : 'HP SAT', size: 1 });
+      }
+    }
+    // NW crossover markers
+    if (toggles.NW && nwArr.length) {
+      for (let i = 1; i < candles.length; i++) {
+        const e = nwArr[i]; if (!e?.rawSignal) continue;
+        allMarkers.push({ time: candles[i].time,
+          position: e.rawSignal === 'BUY' ? 'belowBar' : 'aboveBar',
+          color: e.rawSignal === 'BUY' ? '#0d9488' : '#e11d48',
+          shape: e.rawSignal === 'BUY' ? 'arrowUp' : 'arrowDown',
+          text: e.rawSignal === 'BUY' ? 'NW ↑' : 'NW ↓', size: 1 });
+      }
+    }
 
     const finalMarkers = limitMarkersForMobile(mergeMarkers(allMarkers));
     state.candleSeries.setMarkers(finalMarkers);
@@ -2928,6 +3146,10 @@ function openSettings() {
   if ($('cfg-maxLate')) $('cfg-maxLate').value = cfg.maxLate;
   if ($('cfg-cooldownBars')) $('cfg-cooldownBars').value = cfg.cooldownBars;
   if ($('cfg-theme')) $('cfg-theme').value = cfg.theme || 'dark';
+  if ($('cfg-hpFast')) $('cfg-hpFast').value = cfg.hpFast ?? 21;
+  if ($('cfg-hpSlow')) $('cfg-hpSlow').value = cfg.hpSlow ?? 100;
+  if ($('cfg-nwBandwidth')) $('cfg-nwBandwidth').value = cfg.nwBandwidth ?? 8;
+  if ($('cfg-nwMult')) $('cfg-nwMult').value = cfg.nwMult ?? 3;
   $('settingsBackdrop').classList.add('open');
   $('settingsModal').classList.add('open');
 }
@@ -2953,6 +3175,10 @@ function applySettings() {
   if ($('cfg-maxLate')) cfg.maxLate = parseInt($('cfg-maxLate').value) || 34;
   if ($('cfg-cooldownBars')) cfg.cooldownBars = parseInt($('cfg-cooldownBars').value) || 14;
   if ($('cfg-theme')) { cfg.theme = $('cfg-theme').value || 'dark'; applyTheme(cfg.theme); }
+  if ($('cfg-hpFast')) cfg.hpFast = parseInt($('cfg-hpFast').value) || 21;
+  if ($('cfg-hpSlow')) cfg.hpSlow = parseInt($('cfg-hpSlow').value) || 100;
+  if ($('cfg-nwBandwidth')) cfg.nwBandwidth = parseFloat($('cfg-nwBandwidth').value) || 8;
+  if ($('cfg-nwMult')) cfg.nwMult = parseFloat($('cfg-nwMult').value) || 3;
   saveCfg();
   closeSettings();
   if (state.chartLoaded) loadChart(state.symbol, state.tf);
