@@ -24,11 +24,11 @@ export function getCacheTTL(tf: Timeframe): number {
   return Math.max(TF_MS[tf] - 10_000, 60_000);
 }
 
-/** Check if a timeframe candle has just closed (within last 30 seconds) */
+/** Check if a timeframe candle has just closed (within last 5 minutes) */
 export function isTimeframeDue(tf: Timeframe, now: number = Date.now()): boolean {
   const ms = TF_MS[tf];
   const remainder = now % ms;
-  return remainder < 30_000; // within first 30s after candle close
+  return remainder < 300_000; // within first 5m after candle close
 }
 
 /** Next candle close time */

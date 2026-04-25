@@ -4263,30 +4263,49 @@ const NEXUS = (() => {
     const inp = $('backendUrlInput');
     if(inp) inp.value = backendUrl;
     
-    if(txt) txt.textContent = 'Bağlantı kontrol ediliyor...';
+    if(txt) txt.textContent = 'Bağlantı kontrol ediliyor (Uyanıyor olabilir)...';
     if(dot) dot.className = 'status-dot';
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); 
-
-    try {
-      const res = await fetch(backendUrl + '/health', { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        backendConnected = true;
-        if(dot) dot.className = 'status-dot ok';
-        if(txt) txt.textContent = 'Bağlı (' + backendUrl + ')';
-        loadSettingsFromBackend(); 
-      } else throw new Error();
-    } catch(e) {
-      clearTimeout(timeoutId);
-      backendConnected = false;
-      if(dot) dot.className = 'status-dot err';
-      if(txt) txt.textContent = e.name === 'AbortError' ? 'Zaman aşımı (Backend uyanıyor olabilir)' : 'Bağlantı yok';
-    }
     const btn = $('testPushBtn');
-    if (btn) btn.disabled = !backendConnected;
     const mbtn = $('manualScanBtn');
+    if (btn) btn.disabled = true;
+    if (mbtn) mbtn.disabled = true;
+
+    let retries = 3;
+    let success = false;
+    
+    while(retries > 0 && !success) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); 
+
+      try {
+        const res = await fetch(backendUrl + '/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          backendConnected = true;
+          success = true;
+          if(dot) dot.className = 'status-dot ok';
+          if(txt) txt.textContent = 'Bağlı (' + backendUrl + ')';
+          loadSettingsFromBackend(); 
+          break;
+        } else {
+          throw new Error('HTTP ' + res.status);
+        }
+      } catch(e) {
+        clearTimeout(timeoutId);
+        retries--;
+        if (retries > 0) {
+          if(txt) txt.textContent = `Tekrar deneniyor... (${retries} deneme kaldı)`;
+          await new Promise(r => setTimeout(r, 3000)); // wait 3s before retry
+        } else {
+          backendConnected = false;
+          if(dot) dot.className = 'status-dot err';
+          if(txt) txt.textContent = e.name === 'AbortError' ? 'Zaman aşımı (Backend uyanamadı)' : 'Bağlantı yok';
+        }
+      }
+    }
+    
+    if (btn) btn.disabled = !backendConnected;
     if (mbtn) mbtn.disabled = !backendConnected;
   }
 
