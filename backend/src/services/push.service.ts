@@ -27,29 +27,37 @@ export interface PushPayload {
 }
 
 function buildNotificationPayload(signal: SignalResult): PushPayload {
-  const dir = signal.direction === 'LONG' ? 'AL' : signal.direction === 'SHORT' ? 'SAT' : 'İZLE';
+  const dir = signal.direction === 'LONG' ? '📈 LONG' : signal.direction === 'SHORT' ? '📉 SHORT' : '👀 İZLE';
   const sigLabel: Record<string, string> = {
-    CONSENSUS_BUY:  'KONSENSÜS AL 🟢',
-    CONSENSUS_SELL: 'KONSENSÜS SAT 🔴',
-    QUALITY_BUY:    'KALİTELİ AL 🟢',
-    QUALITY_SELL:   'KALİTELİ SAT 🔴',
-    PULLBACK_LONG:  'PULLBACK BÖLGESİ 🟡',
-    PULLBACK_SHORT: 'PULLBACK BÖLGESİ 🟡',
-    SLEEPING_LONG:  'Uyuyan Setup 🌙',
-    SLEEPING_SHORT: 'Uyuyan Setup 🌙',
-    LATE_LONG:      'GEÇ GİRİŞ RİSKİ ⚠️',
-    LATE_SHORT:     'GEÇ GİRİŞ RİSKİ ⚠️',
-    WATCH_LONG:     'İZLE — LONG 👀',
-    WATCH_SHORT:    'İZLE — SHORT 👀',
+    CONSENSUS_BUY:  '🟢 KONSENSÜS AL',
+    CONSENSUS_SELL: '🔴 KONSENSÜS SAT',
+    QUALITY_BUY:    '🟢 KALİTELİ AL',
+    QUALITY_SELL:   '🔴 KALİTELİ SAT',
+    PULLBACK_LONG:  '🟡 PULLBACK BÖLGESİ',
+    PULLBACK_SHORT: '🟡 PULLBACK BÖLGESİ',
+    SLEEPING_LONG:  '🌙 Uyuyan Setup',
+    SLEEPING_SHORT: '🌙 Uyuyan Setup',
+    LATE_LONG:      '⚠️ GEÇ GİRİŞ RİSKİ',
+    LATE_SHORT:     '⚠️ GEÇ GİRİŞ RİSKİ',
+    WATCH_LONG:     '👀 İZLE — LONG',
+    WATCH_SHORT:    '👀 İZLE — SHORT',
   };
 
   const title = `${signal.symbol} · ${signal.timeframe.toUpperCase()} · ${sigLabel[signal.signal] ?? signal.signal}`;
 
-  let body = `Güven: ${signal.confidence}% · SEQ: ${signal.seqScore} · R/R: ${signal.rr}x\n`;
-  body += `Giriş: ${signal.entryZone.low.toFixed(4)}–${signal.entryZone.high.toFixed(4)}\n`;
+  const entry = `${signal.entryZone.low.toFixed(4)}–${signal.entryZone.high.toFixed(4)}`;
+  let body = `${dir} · Güven: ${signal.confidence}% · Kalite: ${signal.quality} · R/R: ${signal.rr}x\n`;
+  body += `📥 Giriş: ${entry}\n`;
+  body += `🎯 TP1: ${signal.tp1.toFixed(4)}  TP2: ${signal.tp2.toFixed(4)}  TP3: ${signal.tp3.toFixed(4)}\n`;
+  body += `🛡 Stop: ${signal.stopLoss.toFixed(4)}`;
   if (signal.reasons.length > 0) {
-    body += signal.reasons.slice(0, 2).join(', ');
+    body += `\n💡 ${signal.reasons.slice(0, 2).join(' · ')}`;
   }
+
+  // Android titreşim: LONG = kısa, SHORT = uzun
+  const vibrate = signal.direction === 'LONG'
+    ? [200, 100, 200]
+    : [500, 200, 500, 200, 500];
 
   return {
     title,
@@ -61,7 +69,15 @@ function buildNotificationPayload(signal: SignalResult): PushPayload {
       symbol:    signal.symbol,
       timeframe: signal.timeframe,
       signal:    signal.signal,
-      url:       `/?symbol=${signal.symbol}&tf=${signal.timeframe}`,
+      direction: signal.direction,
+      tp1:       signal.tp1,
+      tp2:       signal.tp2,
+      tp3:       signal.tp3,
+      stopLoss:  signal.stopLoss,
+      entryLow:  signal.entryZone.low,
+      entryHigh: signal.entryZone.high,
+      vibrate,
+      url: `/?symbol=${signal.symbol}&tf=${signal.timeframe}`,
     },
   };
 }

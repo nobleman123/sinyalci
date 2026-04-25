@@ -106,6 +106,8 @@ model SignalEvent {
 
   user    User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   alerts  AlertDelivery[]
+  outcome SignalOutcome?
+  snapshot IndicatorSnapshot?
 }
 
 model AlertDelivery {
@@ -120,6 +122,69 @@ model AlertDelivery {
   signalEvent      SignalEvent        @relation(fields: [signalEventId], references: [id], onDelete: Cascade)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   pushSubscription PushSubscription? @relation(fields: [pushSubscriptionId], references: [id], onDelete: SetNull)
+}
+
+model SignalOutcome {
+  id                     String   @id @default(uuid())
+  signalEventId          String   @unique
+  symbol                 String
+  timeframe              String
+  direction              String
+  signal                 String
+  entryLow               Float
+  entryHigh              Float
+  stopLoss               Float
+  tp1                    Float
+  tp2                    Float
+  tp3                    Float
+  candleCloseTime        DateTime
+  evaluationWindowHours  Int      @default(72)
+  status                 String   @default("PENDING") // PENDING, ENTRY_TRIGGERED, TP1_HIT, TP2_HIT, TP3_HIT, STOP_HIT, EXPIRED, INVALIDATED, MISSED
+  entryTriggeredAt       DateTime?
+  tp1HitAt               DateTime?
+  tp2HitAt               DateTime?
+  tp3HitAt               DateTime?
+  stopHitAt              DateTime?
+  expiredAt              DateTime?
+  mfePercent             Float    @default(0) // Max Favorable Excursion %
+  maePercent             Float    @default(0) // Max Adverse Excursion %
+  mfeR                   Float    @default(0)
+  maeR                   Float    @default(0)
+  finalR                 Float    @default(0)
+  barsToEntry            Int      @default(0)
+  barsToTp1              Int      @default(0)
+  barsToStop             Int      @default(0)
+  returnAfter3Bars       Float    @default(0)
+  returnAfter5Bars       Float    @default(0)
+  returnAfter10Bars      Float    @default(0)
+  returnAfter24h         Float    @default(0)
+  returnAfter72h         Float    @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  signalEvent SignalEvent @relation(fields: [signalEventId], references: [id], onDelete: Cascade)
+}
+
+model IndicatorSnapshot {
+  id              String   @id @default(uuid())
+  signalEventId   String   @unique
+  symbol          String
+  timeframe       String
+  direction       String
+  utDirection     Int      @default(0)
+  vrtDirection    Int      @default(0)
+  vrtRegime       String   @default("")
+  stDirection     Int      @default(0)
+  emaTrend        Int      @default(0)
+  amcScore        Float    @default(50)
+  seqScore        Int      @default(0)
+  lateRisk        Int      @default(0)
+  rr              Float    @default(0)
+  marketRegime    String   @default("MIXED")
+  activeComboKey  String   @default("")
+  createdAt       DateTime @default(now())
+
+  signalEvent SignalEvent @relation(fields: [signalEventId], references: [id], onDelete: Cascade)
 }
 
 model MarketSnapshot {

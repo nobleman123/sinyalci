@@ -163,6 +163,54 @@ async function scanForUser(userId: string) {
 
         if (!signalEvent) continue; // duplicate key constraint caught
 
+        // ── Save IndicatorSnapshot ────────────────────────────────────
+        const comboKey = [
+          result.rawIndicators.ut  !== 0 ? 'UT'  : '',
+          result.rawIndicators.vrt !== 0 ? 'VRT' : '',
+          result.rawIndicators.st  !== 0 ? 'ST'  : '',
+          result.rawIndicators.seqScore >= 65 ? 'SEQ' : '',
+          result.marketRegime !== 'MIXED' ? 'MKT' : '',
+        ].filter(Boolean).sort().join('+') || 'NONE';
+
+        await prisma.indicatorSnapshot.create({
+          data: {
+            signalEventId: signalEvent.id,
+            symbol, timeframe: tf,
+            direction:     result.direction,
+            utDirection:   result.rawIndicators.ut,
+            vrtDirection:  result.rawIndicators.vrt,
+            stDirection:   result.rawIndicators.st,
+            emaTrend:      result.rawIndicators.ema,
+            amcScore:      result.rawIndicators.amc,
+            seqScore:      result.rawIndicators.seqScore,
+            lateRisk:      result.lateRisk,
+            rr:            result.rr,
+            marketRegime:  result.marketRegime,
+            activeComboKey: comboKey,
+          },
+        }).catch(() => {});
+
+        // ── Create SignalOutcome (PENDING) ────────────────────────────
+        const evalWindowHrs: Record<string,number> = {
+          '5m':4,'15m':12,'30m':24,'1h':72,'4h':240,
+          '6h':336,'12h':480,'1d':720,'3d':1440,'1w':2016,
+        };
+        await prisma.signalOutcome.create({
+          data: {
+            signalEventId:        signalEvent.id,
+            symbol, timeframe:    tf,
+            direction:            result.direction,
+            signal:               result.signal,
+            entryLow:             result.entryZone.low,
+            entryHigh:            result.entryZone.high,
+            stopLoss:             result.stopLoss,
+            tp1: result.tp1, tp2: result.tp2, tp3: result.tp3,
+            candleCloseTime:      new Date(result.candleCloseTime),
+            evaluationWindowHours: evalWindowHrs[tf] ?? 72,
+            status: 'PENDING',
+          },
+        }).catch(() => {});
+
         // ── Set duplicate + cooldown TTL ─────────────────────────────
         const cooldownSec = settings.cooldownMinutes * 60;
         await redis.setNX(dupKey, '1', cooldownSec * 2);

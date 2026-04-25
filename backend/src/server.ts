@@ -14,11 +14,13 @@ import { watchlistRoutes }from './routes/watchlist.routes';
 import { marketRoutes }   from './routes/market.routes';
 import { analyzeRoutes }  from './routes/analyze.routes';
 import { signalRoutes }   from './routes/signals.routes';
+import { analyticsRoutes } from './routes/analytics.routes';
 
 // Workers (background jobs)
 import { startMarketHealthWorker }  from './workers/marketHealth.worker';
 import { startSymbolUniverseWorker }from './workers/symbolUniverse.worker';
 import { startSignalScannerWorker } from './workers/signalScanner.worker';
+import { startOutcomeEvaluatorWorker } from './workers/outcomeEvaluator.worker';
 
 const fastify = Fastify({
   logger: false,
@@ -55,6 +57,7 @@ async function bootstrap() {
   await fastify.register(marketRoutes,    { prefix: '/api/market' });
   await fastify.register(analyzeRoutes,   { prefix: '/api/analyze' });
   await fastify.register(signalRoutes,    { prefix: '/api/signals' });
+  await fastify.register(analyticsRoutes, { prefix: '/api/analytics' });
 
   // ── Error handler ─────────────────────────────────────────────────────
   fastify.setErrorHandler((err, _req, reply) => {
@@ -69,6 +72,7 @@ async function bootstrap() {
   startMarketHealthWorker();
   startSymbolUniverseWorker();
   startSignalScannerWorker();
+  startOutcomeEvaluatorWorker();
 
   // ── Start server ──────────────────────────────────────────────────────
   await fastify.listen({ port: env.PORT, host: '0.0.0.0' });
