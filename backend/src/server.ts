@@ -30,7 +30,14 @@ const fastify = Fastify({
 async function bootstrap() {
   // ── Plugins ─────────────────────────────────────────────────────────
   await fastify.register(cors, {
-    origin: [env.FRONTEND_ORIGIN, 'http://localhost:3000', 'http://localhost:5173'],
+    origin: [
+      env.FRONTEND_ORIGIN,
+      'https://sinyalci.com',
+      'https://www.sinyalci.com',
+      'https://sinyalci-frontend.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
@@ -78,14 +85,35 @@ async function bootstrap() {
   await fastify.listen({ port: env.PORT, host: '0.0.0.0' });
   logger.info(`🚀 NEXUS Backend running on port ${env.PORT}`);
 
-  // ── Keep-alive (Prevent Render Sleep) ─────────────────────────────────
+  // ── Keep-alive (Prevent Render Free Tier Sleep) ────────────────────────
   if (env.NODE_ENV === 'production') {
-    const backendUrl = 'https://sinyalci-backend.onrender.com';
-    setInterval(() => {
-      fetch(`${backendUrl}/health`)
-        .then(() => logger.info('Keep-alive ping sent to prevent sleep.'))
-        .catch(err => logger.warn('Keep-alive ping failed', { error: err.message }));
-    }, 10 * 60 * 1000); // Her 10 dakikada bir ping atar
+    const BACKEND_URL = process.env.RENDER_EXTERNAL_URL || 'https://sinyalci-backend.onrender.com';
+    let failCount = 0;
+
+    async function keepAlive() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/health`);
+        if (res.ok) {
+          failCount = 0;
+          logger.info(`💓 Keep-alive OK [${new Date().toISOString()}]`);
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        logger.warn(`⚠️ Keep-alive ping failed (${failCount}x)`, { error: err.message });
+        // Retry after 30 seconds if failed
+        if (failCount <= 3) {
+          setTimeout(keepAlive, 30_000);
+        }
+      }
+    }
+
+    // Ping every 4 minutes (Render sleeps after 15 min inactivity → 4 min is safe margin)
+    setInterval(keepAlive, 4 * 60 * 1000);
+    // Also do an immediate ping 10 seconds after boot
+    setTimeout(keepAlive, 10_000);
+    logger.info(`🔋 Keep-alive scheduler started (every 4m) → ${BACKEND_URL}`);
   }
 }
 
