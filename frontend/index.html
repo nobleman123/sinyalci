@@ -1376,6 +1376,370 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
     </div>
   </div>
 
+
+<!-- ══════════════════════ ALERTS TAB ══════════════════════ -->
+<div class="tab-pane" id="tab-alerts" style="padding:0">
+  <div class="alerts-wrap">
+
+    <!-- LOCAL MODE BANNER -->
+    <div class="local-mode-banner">
+      <div class="lm-icon">📱</div>
+      <div class="lm-body">
+        <div class="lm-title">Lokal Sinyal Modu — Backend Gerektirmez</div>
+        <div class="lm-sub">Tüm analizler doğrudan Binance API'sinden yapılır. Tarayıcı bildirimleri tarayıcı Push API ile çalışır.</div>
+      </div>
+    </div>
+
+    <!-- BACKEND BAĞLANTISI -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">🌐 Backend ve Cihaz</div>
+      <div class="push-status-row" style="margin-bottom:8px">
+        <span class="status-dot" id="backendDot"></span>
+        <span id="backendStatusText">Bağlantı kontrol ediliyor...</span>
+      </div>
+      <div class="ctrl-grid" style="margin-bottom:8px">
+        <div class="ctrl-item">
+          <input class="ctrl-input" id="backendUrlInput" placeholder="https://api.nexus.com" />
+        </div>
+        <div class="ctrl-item" style="flex-direction:row;gap:6px">
+          <button class="btn-secondary" id="backendConnectBtn" style="flex:1">Bağlan</button>
+          <button class="btn-primary" id="registerDeviceBtn" style="flex:1">Cihazı Kaydet</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);" id="deviceStatusMsg">Cihaz kaydı backend bildirimleri için gereklidir.</div>
+    </div>
+
+    <!-- PUSH NOTIFICATIONS -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">🔔 Tarayıcı Bildirimleri</div>
+      <div class="push-status-row" id="pushStatusRow">
+        <span class="status-dot" id="pushDot"></span>
+        <span id="pushStatusText">Bildirim izni kontrol ediliyor...</span>
+        <button class="btn-secondary" id="requestPushBtn" style="width:auto;padding:7px 14px;margin-left:auto">İzin Al</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn-secondary" id="testPushBtn" style="flex:1" disabled>🧪 Test Bildirimi Gönder</button>
+        <button class="btn-secondary" id="manualScanBtn" style="flex:1;background:var(--bg3)" disabled>⚡ Manuel Tarama Tetikle</button>
+      </div>
+    </div>
+
+    <!-- COIN FILTER -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">🔍 Hangi Coinleri İzliyorsun?</div>
+      <!-- Universe hızlı seçim -->
+      <div class="filter-pill-row" id="universeRow" style="margin-bottom:12px">
+        <div class="filter-pill active" data-universe="WATCHLIST"><span class="pill-dot"></span>Watchlist</div>
+        <div class="filter-pill" data-universe="TOP_50"><span class="pill-dot"></span>Top 50</div>
+        <div class="filter-pill" data-universe="TOP_100"><span class="pill-dot"></span>Top 100</div>
+        <div class="filter-pill" data-universe="TOP_200"><span class="pill-dot"></span>Top 200</div>
+        <div class="filter-pill" data-universe="CUSTOM"><span class="pill-dot"></span>Manuel Giriş</div>
+      </div>
+      <!-- Manuel coin giriş -->
+      <div id="customCoinWrap" style="display:none">
+        <div class="coin-filter-wrap">
+          <input class="coin-filter-input" id="alertCoinInput" placeholder="Sembol ekle (ör: SOLUSDT)..." autocomplete="off"/>
+          <button class="coin-filter-add" id="alertCoinAddBtn">+ Ekle</button>
+        </div>
+        <div class="coin-tag-list" id="alertCoinTags"></div>
+      </div>
+    </div>
+
+    <!-- TIMEFRAME SEÇİMİ -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">⏰ Zaman Dilimleri</div>
+      <div class="tf-toggle-grid" id="alertTfGrid">
+        <div class="tf-toggle" data-tf="5m">5dk</div>
+        <div class="tf-toggle" data-tf="15m">15dk</div>
+        <div class="tf-toggle active" data-tf="1h">1s</div>
+        <div class="tf-toggle active" data-tf="4h">4s</div>
+        <div class="tf-toggle" data-tf="1d">1g</div>
+      </div>
+    </div>
+
+    <!-- İNDİKATÖR SEÇİMİ -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">🧠 Hangi İndikatörlerden Sinyal Al?</div>
+      <div class="ind-cards-grid" id="indCardsGrid">
+
+        <div class="ind-card selected" data-ind="UT">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">🤖</div>
+          <div class="ind-card-name">UT Bot</div>
+          <div class="ind-card-desc">ATR tabanlı trailing stop sinyali. Güçlü trend değişimini yakalar.</div>
+        </div>
+
+        <div class="ind-card selected" data-ind="VRT">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">🌊</div>
+          <div class="ind-card-name">VRT</div>
+          <div class="ind-card-desc">Volatilite rejim trendı. TRENDING / BREAKOUT rejimlerini tespit eder.</div>
+        </div>
+
+        <div class="ind-card selected" data-ind="SUPER">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">⚡</div>
+          <div class="ind-card-name">SuperTrend</div>
+          <div class="ind-card-desc">ATR banttı trend takip çizgisi. Yön değişiminde al/sat sinyali.</div>
+        </div>
+
+        <div class="ind-card" data-ind="AMC">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">📊</div>
+          <div class="ind-card-name">AMC Skoru</div>
+          <div class="ind-card-desc">0–100 adaptif momentum. 70+ güçlü yükseliş, 30- güçlü düşüş.</div>
+        </div>
+
+        <div class="ind-card" data-ind="SEQ">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">🎯</div>
+          <div class="ind-card-name">SEQ Skoru</div>
+          <div class="ind-card-desc">Giriş noktası kalitesi (0–100). 70+ prime entry zonu.</div>
+        </div>
+
+        <div class="ind-card" data-ind="EMA">
+          <div class="ind-card-check">✓</div>
+          <div class="ind-card-icon">📉</div>
+          <div class="ind-card-name">EMA Yönü</div>
+          <div class="ind-card-desc">EMA 20/50/200 hizalanması. Trend yönü onayı için kullanılır.</div>
+        </div>
+
+      </div>
+
+      <!-- Min match -->
+      <div style="margin-top:14px">
+        <div class="ctrl-label" style="margin-bottom:4px">En Az Kaç İndikatör Uyumlu Olmalı? <span id="minMatchLabel" style="color:var(--prep2)">2</span></div>
+        <div class="min-match-wrap">
+          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">1</span>
+          <input type="range" id="minMatchSlider" min="1" max="6" value="2" step="1"/>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">6</span>
+          <div class="min-match-badge" id="minMatchBadge">2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SİNYAL FİLTRESİ -->
+    <div class="alerts-section">
+      <div class="alerts-section-title">🔧 Sinyal Eşikleri</div>
+      <div class="ctrl-grid">
+        <div class="ctrl-item">
+          <span class="ctrl-label">Min Güven (%)</span>
+          <input class="ctrl-input" id="alertMinConf" type="number" min="50" max="99" value="75"/>
+        </div>
+        <div class="ctrl-item">
+          <span class="ctrl-label">Min SEQ</span>
+          <input class="ctrl-input" id="alertMinSeq" type="number" min="40" max="99" value="70"/>
+        </div>
+        <div class="ctrl-item">
+          <span class="ctrl-label">Min R/R</span>
+          <input class="ctrl-input" id="alertMinRR" type="number" min="1" max="5" step="0.1" value="1.8"/>
+        </div>
+        <div class="ctrl-item">
+          <span class="ctrl-label">Max Geç Giriş Riski (%)</span>
+          <input class="ctrl-input" id="alertMaxLate" type="number" min="10" max="80" value="35"/>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="toggle-row"><label>Sadece A+ Sinyaller</label><input type="checkbox" id="alertOnlyAPlus"/></div>
+        <div class="toggle-row"><label>Market Regime Filtresi (BTC yönü)</label><input type="checkbox" id="alertRegimeFilter" checked/></div>
+        <div class="toggle-row"><label>Pullback Bildirimleri</label><input type="checkbox" id="alertPullback" checked/></div>
+        <div class="toggle-row"><label>Geç Giriş Uyarıları</label><input type="checkbox" id="alertLateWarn" checked/></div>
+        <div class="toggle-row"><label>Uyuyan Coin Radar</label><input type="checkbox" id="alertSleeping" checked/></div>
+      </div>
+      <button class="btn-primary" id="saveAlertSettingsBtn" style="margin-top:16px">💾 Ayarları Kaydet</button>
+    </div>
+
+    <!-- SON SİNYALLER -->
+    <div class="alerts-section">
+      <div class="alerts-section-title" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:7px"><span style="display:inline-block;width:3px;height:13px;background:var(--prep2);border-radius:2px"></span>Son Sinyaller</span>
+        <button class="btn-secondary" id="clearHistoryBtn" style="width:auto;padding:4px 10px;font-size:10px;border-radius:7px">✕ Temizle</button>
+      </div>
+      <div id="alertHistoryList"><span style="color:var(--text3);font-size:12px">Henüz sinyal yok — Tarayıcıyı açık bırak ve tarama yap.</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════ PERFORMANCE TAB ══════════════════════ -->
+<div class="tab-pane" id="tab-performance" style="flex-direction:column;overflow-y:auto">
+<style>
+.perf-wrap{max-width:900px;margin:0 auto;padding:18px 16px;width:100%}
+.perf-section{margin-bottom:24px}
+.perf-section-title{
+  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);margin-bottom:12px;padding-bottom:7px;
+  border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:space-between;gap:7px;
+}
+.perf-section-title::before{content:'';display:inline-block;width:3px;height:13px;background:var(--prep2);border-radius:2px;flex-shrink:0}
+.overview-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px}
+.ov-card{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:14px;
+  padding:14px 12px;text-align:center;transition:.15s;
+}
+.ov-card:hover{border-color:var(--border);transform:translateY(-1px)}
+.ov-card-val{font-family:var(--mono);font-size:20px;font-weight:800;color:var(--heading)}
+.ov-card-val.bull{color:var(--bull2)}.ov-card-val.bear{color:var(--bear)}.ov-card-val.warn{color:var(--warn)}
+.ov-card-label{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin-top:4px}
+.perf-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border2)}
+.perf-table{width:100%;border-collapse:collapse;font-size:11px}
+.perf-table th{background:var(--bg3);color:var(--text3);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+.perf-table th:hover{color:var(--heading)}
+.perf-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);white-space:nowrap}
+.perf-table tr:hover td{background:rgba(255,255,255,.02)}
+.status-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.04em}
+.st-pending{background:rgba(100,116,139,.15);color:var(--text2);border:1px solid rgba(100,116,139,.2)}
+.st-tp1{background:rgba(16,185,129,.15);color:var(--bull2);border:1px solid rgba(16,185,129,.2)}
+.st-tp2{background:rgba(16,185,129,.2);color:var(--bull2);border:1px solid rgba(16,185,129,.3)}
+.st-tp3{background:rgba(16,185,129,.3);color:#6ee7b7;border:1px solid rgba(16,185,129,.4)}
+.st-stop{background:rgba(244,63,94,.15);color:var(--bear);border:1px solid rgba(244,63,94,.2)}
+.st-expired{background:rgba(100,116,139,.1);color:var(--text3);border:1px solid var(--border2)}
+.st-entry{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
+.ind-perf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px}
+.ind-perf-card{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:12px;
+}
+.ind-perf-name{font-weight:800;font-size:12px;color:var(--heading);margin-bottom:8px}
+.ind-perf-bars{display:flex;flex-direction:column;gap:4px}
+.ind-bar-row{display:flex;align-items:center;gap:8px;font-size:10px}
+.ind-bar-label{color:var(--text2);width:56px;flex-shrink:0}
+.ind-bar-track{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.ind-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.ind-bar-val{color:var(--heading);font-family:var(--mono);font-size:10px;width:38px;text-align:right;flex-shrink:0}
+.ind-rec{font-size:10px;color:var(--text2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border2)}
+.combo-table td:first-child{font-family:var(--mono);font-weight:700;color:var(--prep)}
+.rec-card{
+  background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(16,185,129,.05));
+  border:1px solid rgba(99,102,241,.2);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;
+}
+.rec-card-title{font-weight:700;font-size:12px;color:var(--heading);margin-bottom:4px}
+.rec-card-body{font-size:11px;color:var(--text2);line-height:1.6}
+.rec-severity-HIGH{border-left:3px solid var(--bear);padding-left:11px}
+.rec-severity-MEDIUM{border-left:3px solid var(--warn);padding-left:11px}
+.rec-severity-LOW{border-left:3px solid var(--bull2);padding-left:11px}
+.perf-filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.perf-filter-select{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;color:var(--heading);font-size:11px;outline:none;cursor:pointer}
+.perf-filter-select:focus{border-color:var(--prep2)}
+.perf-empty{text-align:center;padding:32px;color:var(--text3);font-size:12px}
+.r-pos{color:var(--bull2)}.r-neg{color:var(--bear)}.r-zero{color:var(--text3)}
+@media(max-width:520px){.overview-cards{grid-template-columns:1fr 1fr}.ind-perf-grid{grid-template-columns:1fr}}
+</style>
+<div class="perf-wrap">
+
+  <!-- GENEL KART -->
+  <div class="perf-section">
+    <div class="perf-section-title">
+      <span>Genel Performans</span>
+      <button id="perfRefreshBtn" style="background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;color:var(--text2);font-size:10px;cursor:pointer">↻ Yenile</button>
+    </div>
+    <div class="overview-cards" id="perfOverviewCards">
+      <div class="perf-empty" style="grid-column:1/-1">⏳ Yükleniyor...</div>
+    </div>
+  </div>
+
+  <!-- SİNYAL GEÇMİŞİ -->
+  <div class="perf-section">
+    <div class="perf-section-title">Sinyal Geçmişi</div>
+    <div class="perf-filter-row">
+      <select class="perf-filter-select" id="perfTfFilter">
+        <option value="">Tüm TF</option>
+        <option>5m</option><option>15m</option><option>30m</option>
+        <option>1h</option><option>4h</option><option>6h</option>
+        <option>12h</option><option>1d</option>
+      </select>
+      <select class="perf-filter-select" id="perfStatusFilter">
+        <option value="">Tüm Durum</option>
+        <option value="PENDING">Bekliyor</option>
+        <option value="ENTRY_TRIGGERED">Giriş Yapıldı</option>
+        <option value="TP1_HIT">TP1 ✅</option>
+        <option value="TP2_HIT">TP2 ✅</option>
+        <option value="TP3_HIT">TP3 🏆</option>
+        <option value="STOP_HIT">Stop ❌</option>
+        <option value="EXPIRED">Süre Doldu</option>
+      </select>
+    </div>
+    <div class="perf-table-wrap">
+      <table class="perf-table" id="perfSignalTable">
+        <thead>
+          <tr>
+            <th>Tarih</th>
+            <th>Sembol</th>
+            <th>TF</th>
+            <th>Sinyal</th>
+            <th>Güven</th>
+            <th>SEQ</th>
+            <th>R/R</th>
+            <th>Giriş</th>
+            <th>TP1</th>
+            <th>Stop</th>
+            <th>Durum</th>
+            <th>Final R</th>
+          </tr>
+        </thead>
+        <tbody id="perfSignalTbody"><tr><td colspan="12" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- İNDİKATÖR PERFORMANSI -->
+  <div class="perf-section">
+    <div class="perf-section-title">İndikatör Performansı</div>
+    <div class="ind-perf-grid" id="perfIndGrid">
+      <div class="perf-empty">⏳ Yükleniyor...</div>
+    </div>
+  </div>
+
+  <!-- KOMBİNASYON PERFORMANSI -->
+  <div class="perf-section">
+    <div class="perf-section-title">Kombinasyon Performansı</div>
+    <div class="perf-table-wrap">
+      <table class="perf-table combo-table">
+        <thead><tr>
+          <th>Kombinasyon</th><th>Örnek</th><th>TP1%</th><th>TP2%</th><th>Stop%</th><th>Avg R</th><th>Öneri</th>
+        </tr></thead>
+        <tbody id="perfComboTbody"><tr><td colspan="7" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TİMEFRAME PERFORMANSI -->
+  <div class="perf-section">
+    <div class="perf-section-title">Timeframe Analizi</div>
+    <div class="perf-table-wrap">
+      <table class="perf-table">
+        <thead><tr>
+          <th>TF</th><th>Sinyal</th><th>TP1%</th><th>Stop%</th><th>Avg R</th><th>Gürültü</th><th>Öneri</th>
+        </tr></thead>
+        <tbody id="perfTfTbody"><tr><td colspan="7" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AKILLI ÖNERİLER -->
+  <div class="perf-section">
+    <div class="perf-section-title">Akıllı Öneriler</div>
+    <div id="perfRecList"><div class="perf-empty">⏳ Yükleniyor...</div></div>
+  </div>
+
+</div>
+</div>
+<div class="tab-pane" id="tab-watchlist" style="padding:0">
+  <div class="watchlist-wrap">
+    <div class="alerts-section">
+      <div class="alerts-section-title">Coin Ekle</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input class="wl-search" id="wlAddInput" placeholder="Sembol gir (ör: SOLUSDT)..." style="flex:1"/>
+        <button class="btn-primary" id="wlAddBtn" style="width:auto;padding:8px 16px">+ Ekle</button>
+      </div>
+      <div id="wlAddMsg" style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:6px"></div>
+    </div>
+    <div class="alerts-section">
+      <div class="alerts-section-title">Watchlist (<span id="wlCount">0</span>)</div>
+      <div class="wl-list" id="wlList"><span style="color:var(--text3);font-size:12px">Henüz coin eklenmedi</span></div>
+    </div>
+  </div>
+</div>
 </div><!-- /appContent -->
 
 <!-- ═══ SETTINGS MODAL ═══ -->
@@ -3833,366 +4197,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- ══════════════════════ ALERTS TAB ══════════════════════ -->
-<div class="tab-pane" id="tab-alerts" style="padding:0">
-  <div class="alerts-wrap">
 
-    <!-- LOCAL MODE BANNER -->
-    <div class="local-mode-banner">
-      <div class="lm-icon">📱</div>
-      <div class="lm-body">
-        <div class="lm-title">Lokal Sinyal Modu — Backend Gerektirmez</div>
-        <div class="lm-sub">Tüm analizler doğrudan Binance API'sinden yapılır. Tarayıcı bildirimleri tarayıcı Push API ile çalışır.</div>
-      </div>
-    </div>
-
-    <!-- BACKEND BAĞLANTISI -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">🌐 Backend ve Cihaz</div>
-      <div class="push-status-row" style="margin-bottom:8px">
-        <span class="status-dot" id="backendDot"></span>
-        <span id="backendStatusText">Bağlantı kontrol ediliyor...</span>
-      </div>
-      <div class="ctrl-grid" style="margin-bottom:8px">
-        <div class="ctrl-item">
-          <input class="ctrl-input" id="backendUrlInput" placeholder="https://api.nexus.com" />
-        </div>
-        <div class="ctrl-item" style="flex-direction:row;gap:6px">
-          <button class="btn-secondary" id="backendConnectBtn" style="flex:1">Bağlan</button>
-          <button class="btn-primary" id="registerDeviceBtn" style="flex:1">Cihazı Kaydet</button>
-        </div>
-      </div>
-      <div style="font-size:10px;color:var(--text3);" id="deviceStatusMsg">Cihaz kaydı backend bildirimleri için gereklidir.</div>
-    </div>
-
-    <!-- PUSH NOTIFICATIONS -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">🔔 Tarayıcı Bildirimleri</div>
-      <div class="push-status-row" id="pushStatusRow">
-        <span class="status-dot" id="pushDot"></span>
-        <span id="pushStatusText">Bildirim izni kontrol ediliyor...</span>
-        <button class="btn-secondary" id="requestPushBtn" style="width:auto;padding:7px 14px;margin-left:auto">İzin Al</button>
-      </div>
-      <button class="btn-secondary" id="testPushBtn" style="margin-top:6px" disabled>🧪 Test Bildirimi Gönder</button>
-    </div>
-
-    <!-- COIN FILTER -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">🔍 Hangi Coinleri İzliyorsun?</div>
-      <!-- Universe hızlı seçim -->
-      <div class="filter-pill-row" id="universeRow" style="margin-bottom:12px">
-        <div class="filter-pill active" data-universe="WATCHLIST"><span class="pill-dot"></span>Watchlist</div>
-        <div class="filter-pill" data-universe="TOP_50"><span class="pill-dot"></span>Top 50</div>
-        <div class="filter-pill" data-universe="TOP_100"><span class="pill-dot"></span>Top 100</div>
-        <div class="filter-pill" data-universe="TOP_200"><span class="pill-dot"></span>Top 200</div>
-        <div class="filter-pill" data-universe="CUSTOM"><span class="pill-dot"></span>Manuel Giriş</div>
-      </div>
-      <!-- Manuel coin giriş -->
-      <div id="customCoinWrap" style="display:none">
-        <div class="coin-filter-wrap">
-          <input class="coin-filter-input" id="alertCoinInput" placeholder="Sembol ekle (ör: SOLUSDT)..." autocomplete="off"/>
-          <button class="coin-filter-add" id="alertCoinAddBtn">+ Ekle</button>
-        </div>
-        <div class="coin-tag-list" id="alertCoinTags"></div>
-      </div>
-    </div>
-
-    <!-- TIMEFRAME SEÇİMİ -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">⏰ Zaman Dilimleri</div>
-      <div class="tf-toggle-grid" id="alertTfGrid">
-        <div class="tf-toggle" data-tf="5m">5dk</div>
-        <div class="tf-toggle" data-tf="15m">15dk</div>
-        <div class="tf-toggle active" data-tf="1h">1s</div>
-        <div class="tf-toggle active" data-tf="4h">4s</div>
-        <div class="tf-toggle" data-tf="1d">1g</div>
-      </div>
-    </div>
-
-    <!-- İNDİKATÖR SEÇİMİ -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">🧠 Hangi İndikatörlerden Sinyal Al?</div>
-      <div class="ind-cards-grid" id="indCardsGrid">
-
-        <div class="ind-card selected" data-ind="UT">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">🤖</div>
-          <div class="ind-card-name">UT Bot</div>
-          <div class="ind-card-desc">ATR tabanlı trailing stop sinyali. Güçlü trend değişimini yakalar.</div>
-        </div>
-
-        <div class="ind-card selected" data-ind="VRT">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">🌊</div>
-          <div class="ind-card-name">VRT</div>
-          <div class="ind-card-desc">Volatilite rejim trendı. TRENDING / BREAKOUT rejimlerini tespit eder.</div>
-        </div>
-
-        <div class="ind-card selected" data-ind="SUPER">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">⚡</div>
-          <div class="ind-card-name">SuperTrend</div>
-          <div class="ind-card-desc">ATR banttı trend takip çizgisi. Yön değişiminde al/sat sinyali.</div>
-        </div>
-
-        <div class="ind-card" data-ind="AMC">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">📊</div>
-          <div class="ind-card-name">AMC Skoru</div>
-          <div class="ind-card-desc">0–100 adaptif momentum. 70+ güçlü yükseliş, 30- güçlü düşüş.</div>
-        </div>
-
-        <div class="ind-card" data-ind="SEQ">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">🎯</div>
-          <div class="ind-card-name">SEQ Skoru</div>
-          <div class="ind-card-desc">Giriş noktası kalitesi (0–100). 70+ prime entry zonu.</div>
-        </div>
-
-        <div class="ind-card" data-ind="EMA">
-          <div class="ind-card-check">✓</div>
-          <div class="ind-card-icon">📉</div>
-          <div class="ind-card-name">EMA Yönü</div>
-          <div class="ind-card-desc">EMA 20/50/200 hizalanması. Trend yönü onayı için kullanılır.</div>
-        </div>
-
-      </div>
-
-      <!-- Min match -->
-      <div style="margin-top:14px">
-        <div class="ctrl-label" style="margin-bottom:4px">En Az Kaç İndikatör Uyumlu Olmalı? <span id="minMatchLabel" style="color:var(--prep2)">2</span></div>
-        <div class="min-match-wrap">
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">1</span>
-          <input type="range" id="minMatchSlider" min="1" max="6" value="2" step="1"/>
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">6</span>
-          <div class="min-match-badge" id="minMatchBadge">2</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SİNYAL FİLTRESİ -->
-    <div class="alerts-section">
-      <div class="alerts-section-title">🔧 Sinyal Eşikleri</div>
-      <div class="ctrl-grid">
-        <div class="ctrl-item">
-          <span class="ctrl-label">Min Güven (%)</span>
-          <input class="ctrl-input" id="alertMinConf" type="number" min="50" max="99" value="75"/>
-        </div>
-        <div class="ctrl-item">
-          <span class="ctrl-label">Min SEQ</span>
-          <input class="ctrl-input" id="alertMinSeq" type="number" min="40" max="99" value="70"/>
-        </div>
-        <div class="ctrl-item">
-          <span class="ctrl-label">Min R/R</span>
-          <input class="ctrl-input" id="alertMinRR" type="number" min="1" max="5" step="0.1" value="1.8"/>
-        </div>
-        <div class="ctrl-item">
-          <span class="ctrl-label">Max Geç Giriş Riski (%)</span>
-          <input class="ctrl-input" id="alertMaxLate" type="number" min="10" max="80" value="35"/>
-        </div>
-      </div>
-      <div style="margin-top:12px">
-        <div class="toggle-row"><label>Sadece A+ Sinyaller</label><input type="checkbox" id="alertOnlyAPlus"/></div>
-        <div class="toggle-row"><label>Market Regime Filtresi (BTC yönü)</label><input type="checkbox" id="alertRegimeFilter" checked/></div>
-        <div class="toggle-row"><label>Pullback Bildirimleri</label><input type="checkbox" id="alertPullback" checked/></div>
-        <div class="toggle-row"><label>Geç Giriş Uyarıları</label><input type="checkbox" id="alertLateWarn" checked/></div>
-        <div class="toggle-row"><label>Uyuyan Coin Radar</label><input type="checkbox" id="alertSleeping" checked/></div>
-      </div>
-      <button class="btn-primary" id="saveAlertSettingsBtn" style="margin-top:16px">💾 Ayarları Kaydet</button>
-    </div>
-
-    <!-- SON SİNYALLER -->
-    <div class="alerts-section">
-      <div class="alerts-section-title" style="justify-content:space-between">
-        <span style="display:flex;align-items:center;gap:7px"><span style="display:inline-block;width:3px;height:13px;background:var(--prep2);border-radius:2px"></span>Son Sinyaller</span>
-        <button class="btn-secondary" id="clearHistoryBtn" style="width:auto;padding:4px 10px;font-size:10px;border-radius:7px">✕ Temizle</button>
-      </div>
-      <div id="alertHistoryList"><span style="color:var(--text3);font-size:12px">Henüz sinyal yok — Tarayıcıyı açık bırak ve tarama yap.</span></div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ══════════════════════ PERFORMANCE TAB ══════════════════════ -->
-<div class="tab-pane" id="tab-performance" style="flex-direction:column;overflow-y:auto">
-<style>
-.perf-wrap{max-width:900px;margin:0 auto;padding:18px 16px;width:100%}
-.perf-section{margin-bottom:24px}
-.perf-section-title{
-  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--text3);margin-bottom:12px;padding-bottom:7px;
-  border-bottom:1px solid var(--border2);
-  display:flex;align-items:center;justify-content:space-between;gap:7px;
-}
-.perf-section-title::before{content:'';display:inline-block;width:3px;height:13px;background:var(--prep2);border-radius:2px;flex-shrink:0}
-.overview-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px}
-.ov-card{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:14px;
-  padding:14px 12px;text-align:center;transition:.15s;
-}
-.ov-card:hover{border-color:var(--border);transform:translateY(-1px)}
-.ov-card-val{font-family:var(--mono);font-size:20px;font-weight:800;color:var(--heading)}
-.ov-card-val.bull{color:var(--bull2)}.ov-card-val.bear{color:var(--bear)}.ov-card-val.warn{color:var(--warn)}
-.ov-card-label{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin-top:4px}
-.perf-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border2)}
-.perf-table{width:100%;border-collapse:collapse;font-size:11px}
-.perf-table th{background:var(--bg3);color:var(--text3);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
-.perf-table th:hover{color:var(--heading)}
-.perf-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);white-space:nowrap}
-.perf-table tr:hover td{background:rgba(255,255,255,.02)}
-.status-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.04em}
-.st-pending{background:rgba(100,116,139,.15);color:var(--text2);border:1px solid rgba(100,116,139,.2)}
-.st-tp1{background:rgba(16,185,129,.15);color:var(--bull2);border:1px solid rgba(16,185,129,.2)}
-.st-tp2{background:rgba(16,185,129,.2);color:var(--bull2);border:1px solid rgba(16,185,129,.3)}
-.st-tp3{background:rgba(16,185,129,.3);color:#6ee7b7;border:1px solid rgba(16,185,129,.4)}
-.st-stop{background:rgba(244,63,94,.15);color:var(--bear);border:1px solid rgba(244,63,94,.2)}
-.st-expired{background:rgba(100,116,139,.1);color:var(--text3);border:1px solid var(--border2)}
-.st-entry{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
-.ind-perf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px}
-.ind-perf-card{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:12px;
-}
-.ind-perf-name{font-weight:800;font-size:12px;color:var(--heading);margin-bottom:8px}
-.ind-perf-bars{display:flex;flex-direction:column;gap:4px}
-.ind-bar-row{display:flex;align-items:center;gap:8px;font-size:10px}
-.ind-bar-label{color:var(--text2);width:56px;flex-shrink:0}
-.ind-bar-track{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
-.ind-bar-fill{height:100%;border-radius:3px;transition:width .4s}
-.ind-bar-val{color:var(--heading);font-family:var(--mono);font-size:10px;width:38px;text-align:right;flex-shrink:0}
-.ind-rec{font-size:10px;color:var(--text2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border2)}
-.combo-table td:first-child{font-family:var(--mono);font-weight:700;color:var(--prep)}
-.rec-card{
-  background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(16,185,129,.05));
-  border:1px solid rgba(99,102,241,.2);border-radius:12px;
-  padding:12px 14px;margin-bottom:8px;
-}
-.rec-card-title{font-weight:700;font-size:12px;color:var(--heading);margin-bottom:4px}
-.rec-card-body{font-size:11px;color:var(--text2);line-height:1.6}
-.rec-severity-HIGH{border-left:3px solid var(--bear);padding-left:11px}
-.rec-severity-MEDIUM{border-left:3px solid var(--warn);padding-left:11px}
-.rec-severity-LOW{border-left:3px solid var(--bull2);padding-left:11px}
-.perf-filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.perf-filter-select{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;color:var(--heading);font-size:11px;outline:none;cursor:pointer}
-.perf-filter-select:focus{border-color:var(--prep2)}
-.perf-empty{text-align:center;padding:32px;color:var(--text3);font-size:12px}
-.r-pos{color:var(--bull2)}.r-neg{color:var(--bear)}.r-zero{color:var(--text3)}
-@media(max-width:520px){.overview-cards{grid-template-columns:1fr 1fr}.ind-perf-grid{grid-template-columns:1fr}}
-</style>
-<div class="perf-wrap">
-
-  <!-- GENEL KART -->
-  <div class="perf-section">
-    <div class="perf-section-title">
-      <span>Genel Performans</span>
-      <button id="perfRefreshBtn" style="background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;color:var(--text2);font-size:10px;cursor:pointer">↻ Yenile</button>
-    </div>
-    <div class="overview-cards" id="perfOverviewCards">
-      <div class="perf-empty" style="grid-column:1/-1">⏳ Yükleniyor...</div>
-    </div>
-  </div>
-
-  <!-- SİNYAL GEÇMİŞİ -->
-  <div class="perf-section">
-    <div class="perf-section-title">Sinyal Geçmişi</div>
-    <div class="perf-filter-row">
-      <select class="perf-filter-select" id="perfTfFilter">
-        <option value="">Tüm TF</option>
-        <option>5m</option><option>15m</option><option>30m</option>
-        <option>1h</option><option>4h</option><option>6h</option>
-        <option>12h</option><option>1d</option>
-      </select>
-      <select class="perf-filter-select" id="perfStatusFilter">
-        <option value="">Tüm Durum</option>
-        <option value="PENDING">Bekliyor</option>
-        <option value="ENTRY_TRIGGERED">Giriş Yapıldı</option>
-        <option value="TP1_HIT">TP1 ✅</option>
-        <option value="TP2_HIT">TP2 ✅</option>
-        <option value="TP3_HIT">TP3 🏆</option>
-        <option value="STOP_HIT">Stop ❌</option>
-        <option value="EXPIRED">Süre Doldu</option>
-      </select>
-    </div>
-    <div class="perf-table-wrap">
-      <table class="perf-table" id="perfSignalTable">
-        <thead>
-          <tr>
-            <th>Tarih</th>
-            <th>Sembol</th>
-            <th>TF</th>
-            <th>Sinyal</th>
-            <th>Güven</th>
-            <th>SEQ</th>
-            <th>R/R</th>
-            <th>Giriş</th>
-            <th>TP1</th>
-            <th>Stop</th>
-            <th>Durum</th>
-            <th>Final R</th>
-          </tr>
-        </thead>
-        <tbody id="perfSignalTbody"><tr><td colspan="12" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- İNDİKATÖR PERFORMANSI -->
-  <div class="perf-section">
-    <div class="perf-section-title">İndikatör Performansı</div>
-    <div class="ind-perf-grid" id="perfIndGrid">
-      <div class="perf-empty">⏳ Yükleniyor...</div>
-    </div>
-  </div>
-
-  <!-- KOMBİNASYON PERFORMANSI -->
-  <div class="perf-section">
-    <div class="perf-section-title">Kombinasyon Performansı</div>
-    <div class="perf-table-wrap">
-      <table class="perf-table combo-table">
-        <thead><tr>
-          <th>Kombinasyon</th><th>Örnek</th><th>TP1%</th><th>TP2%</th><th>Stop%</th><th>Avg R</th><th>Öneri</th>
-        </tr></thead>
-        <tbody id="perfComboTbody"><tr><td colspan="7" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- TİMEFRAME PERFORMANSI -->
-  <div class="perf-section">
-    <div class="perf-section-title">Timeframe Analizi</div>
-    <div class="perf-table-wrap">
-      <table class="perf-table">
-        <thead><tr>
-          <th>TF</th><th>Sinyal</th><th>TP1%</th><th>Stop%</th><th>Avg R</th><th>Gürültü</th><th>Öneri</th>
-        </tr></thead>
-        <tbody id="perfTfTbody"><tr><td colspan="7" class="perf-empty">⏳ Yükleniyor...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- AKILLI ÖNERİLER -->
-  <div class="perf-section">
-    <div class="perf-section-title">Akıllı Öneriler</div>
-    <div id="perfRecList"><div class="perf-empty">⏳ Yükleniyor...</div></div>
-  </div>
-
-</div>
-</div>
-<div class="tab-pane" id="tab-watchlist" style="padding:0">
-  <div class="watchlist-wrap">
-    <div class="alerts-section">
-      <div class="alerts-section-title">Coin Ekle</div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input class="wl-search" id="wlAddInput" placeholder="Sembol gir (ör: SOLUSDT)..." style="flex:1"/>
-        <button class="btn-primary" id="wlAddBtn" style="width:auto;padding:8px 16px">+ Ekle</button>
-      </div>
-      <div id="wlAddMsg" style="font-size:10px;color:var(--text3);text-align:center;margin-bottom:6px"></div>
-    </div>
-    <div class="alerts-section">
-      <div class="alerts-section-title">Watchlist (<span id="wlCount">0</span>)</div>
-      <div class="wl-list" id="wlList"><span style="color:var(--text3);font-size:12px">Henüz coin eklenmedi</span></div>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ═══════════════════════════════════════════════════
@@ -4237,12 +4242,19 @@ const NEXUS = (() => {
 
   async function api(path, opts = {}) {
     const url = backendUrl + path;
-    const res = await fetch(url, {
-      ...opts,
-      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }
-    });
-    if (!res.ok) throw new Error('API Error: ' + res.status);
-    return res.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeout || 15000);
+    try {
+      const res = await fetch(url, {
+        ...opts,
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }
+      });
+      if (!res.ok) throw new Error('API Error: ' + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async function checkBackend() {
@@ -4250,27 +4262,38 @@ const NEXUS = (() => {
     const txt = $('backendStatusText');
     const inp = $('backendUrlInput');
     if(inp) inp.value = backendUrl;
+    
+    if(txt) txt.textContent = 'Bağlantı kontrol ediliyor...';
+    if(dot) dot.className = 'status-dot';
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); 
+
     try {
-      const res = await fetch(backendUrl + '/health');
+      const res = await fetch(backendUrl + '/health', { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         backendConnected = true;
         if(dot) dot.className = 'status-dot ok';
         if(txt) txt.textContent = 'Bağlı (' + backendUrl + ')';
-        loadSettingsFromBackend(); // Ayarları backend'den eşitle
+        loadSettingsFromBackend(); 
       } else throw new Error();
     } catch(e) {
+      clearTimeout(timeoutId);
       backendConnected = false;
       if(dot) dot.className = 'status-dot err';
-      if(txt) txt.textContent = 'Bağlantı yok';
+      if(txt) txt.textContent = e.name === 'AbortError' ? 'Zaman aşımı (Backend uyanıyor olabilir)' : 'Bağlantı yok';
     }
     const btn = $('testPushBtn');
     if (btn) btn.disabled = !backendConnected;
+    const mbtn = $('manualScanBtn');
+    if (mbtn) mbtn.disabled = !backendConnected;
   }
 
   async function registerDevice() {
     if (!backendConnected) return alert('Önce backend bağlantısı kurmalısınız.');
     try {
-      await api('/api/device/register', {
+      const res = await api('/api/device/register', {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -4278,7 +4301,12 @@ const NEXUS = (() => {
           email: 'local@nexus.com'
         })
       });
+      if (res.userId) {
+        userId = res.userId;
+        localStorage.setItem('nexus_userId', userId);
+      }
       $('deviceStatusMsg').textContent = '✅ Cihaz kaydedildi. Şimdi bildirim izni alabilirsiniz.';
+      loadSettingsFromBackend();
     } catch(e) {
       $('deviceStatusMsg').textContent = '❌ Cihaz kaydı başarısız: ' + e.message;
     }
@@ -4626,12 +4654,13 @@ const NEXUS = (() => {
 
   /* ── Public: push signal from scanner ── */
   function pushSignal(sig) {
-    // Check against alert config filters
     const cfg = alertCfg;
-    if (!cfg.timeframes.includes(sig.timeframe)) return;
+    if (cfg.timeframes.length > 0 && !cfg.timeframes.includes(sig.timeframe)) return;
+    
     const conf = sig.confidence || 0;
     const seq  = sig.seqScore || 0;
     const rr   = sig.rr || 0;
+    
     if (conf < cfg.minConf) return;
     if (seq  < cfg.minSeq)  return;
     if (rr   < cfg.minRR)   return;
@@ -4643,6 +4672,44 @@ const NEXUS = (() => {
       `TF: ${sig.timeframe} · Güven: ${conf}% · R/R: ${rr}x`,
       sig.symbol
     );
+  }
+
+  async function triggerManualScan() {
+    const btn = $('manualScanBtn');
+    if (!backendConnected || !btn) return;
+    
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Tarama Başlatıldı...';
+    
+    try {
+      const symbols = alertCfg.universe === 'WATCHLIST' ? getWatchlist() : alertCfg.customCoins;
+      const tf = alertCfg.timeframes[0] || '1h';
+      
+      const res = await api('/api/signals/scan-now', {
+        method: 'POST',
+        body: JSON.stringify({ userId, symbols: symbols.length ? symbols : null, tf })
+      });
+      
+      btn.textContent = `✅ ${res.scanned} Coin Tarandı`;
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }, 3000);
+      
+      const latest = await api(`/api/signals/latest?userId=${userId}&limit=10`);
+      if (latest?.signals) {
+        latest.signals.forEach(s => addHistory(s));
+        renderHistory();
+      }
+    } catch (e) {
+      btn.textContent = '❌ Hata oluştu';
+      console.error(e);
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }, 3000);
+    }
   }
 
   /* ── Watchlist (shared with watchlist tab) ── */
@@ -4736,6 +4803,8 @@ const NEXUS = (() => {
     // Watchlist tab
     $('wlAddBtn')?.addEventListener('click', addWatchlistItem);
     $('wlAddInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') addWatchlistItem(); });
+
+    $('manualScanBtn')?.addEventListener('click', triggerManualScan);
 
     // Refresh history every minute
     setInterval(renderHistory, 60_000);

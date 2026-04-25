@@ -76,7 +76,7 @@ async function getSymbolsForUser(settings: any): Promise<string[]> {
   return [];
 }
 
-async function scanForUser(userId: string) {
+export async function scanForUser(userId: string, force: boolean = false) {
   const settings = await prisma.userSignalSettings.findUnique({ where: { userId } });
   if (!settings) return;
 
@@ -85,8 +85,8 @@ async function scanForUser(userId: string) {
   
   const now = Date.now();
 
-  // Only scan timeframes that have just closed
-  const dueTimeframes = timeframes.filter(tf => isTimeframeDue(tf, now));
+  // Only scan timeframes that have just closed (unless forced)
+  const dueTimeframes = force ? timeframes : timeframes.filter(tf => isTimeframeDue(tf, now));
   if (dueTimeframes.length === 0) return;
 
   const symbols = await getSymbolsForUser(settings);
@@ -237,7 +237,7 @@ export function startSignalScannerWorker() {
 
       // Scan each user independently
       await Promise.allSettled(
-        allSettings.map((s: { userId: string }) => scanForUser(s.userId))
+        allSettings.map((s: { userId: string }) => scanForUser(s.userId, false))
       );
     } catch (err: any) {
       logger.error('Signal scanner worker error', { error: err.message });

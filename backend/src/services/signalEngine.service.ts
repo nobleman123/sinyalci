@@ -69,14 +69,15 @@ function calcLateRisk(price: number, atr: number, ema20: number, vwap: number | 
 function buildRR(
   price: number, atr: number, isLong: boolean
 ): RiskReward {
+  // Use 1.5x ATR for SL and 3.0x ATR for TP1 to achieve a ~2.0x R/R
   const sl  = isLong ? price - 1.5 * atr : price + 1.5 * atr;
-  const tp1 = isLong ? price + 1.5 * atr : price - 1.5 * atr;
-  const tp2 = isLong ? price + 3.0 * atr : price - 3.0 * atr;
-  const tp3 = isLong ? price + 5.0 * atr : price - 5.0 * atr;
+  const tp1 = isLong ? price + 3.0 * atr : price - 3.0 * atr;
+  const tp2 = isLong ? price + 5.0 * atr : price - 5.0 * atr;
+  const tp3 = isLong ? price + 8.0 * atr : price - 8.0 * atr;
   const rr  = Math.abs(tp1 - price) / Math.max(Math.abs(price - sl), 1e-9);
   return {
-    entryLow:  isLong ? price - 0.3 * atr : price + 0.3 * atr,
-    entryHigh: isLong ? price + 0.2 * atr : price - 0.2 * atr,
+    entryLow:  isLong ? price - 0.2 * atr : price + 0.2 * atr,
+    entryHigh: isLong ? price + 0.1 * atr : price - 0.1 * atr,
     stopLoss: sl, tp1, tp2, tp3, rr,
   };
 }

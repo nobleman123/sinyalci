@@ -73,8 +73,18 @@ export const signalRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/signals/scan-now
   fastify.post<{ Body: { userId?: string; symbols?: string[]; tf?: string } }>(
     '/scan-now', async (req, reply) => {
-      const { userId, symbols, tf = '1h' } = req.body ?? {};
-      if (!isValidTimeframe(tf)) return reply.code(400).send({ error: 'Invalid timeframe' });
+      const { userId, symbols, tf } = req.body ?? {};
+      
+      // If userId is provided, we can trigger the official user-scoped scan
+      if (userId) {
+        const { scanForUser } = await import('../workers/signalScanner.worker');
+        // This will save results to DB and send push notifications if criteria are met
+        await scanForUser(userId, true); 
+        return { success: true, message: 'User scan triggered' };
+      }
+
+      // Fallback for anonymous or specific symbol scan (doesn't save to DB)
+      if (!isValidTimeframe(tf || '1h')) return reply.code(400).send({ error: 'Invalid timeframe' });
 
       const health = await getMarketHealth();
       let toScan: string[];
@@ -89,9 +99,9 @@ export const signalRoutes: FastifyPluginAsync = async (fastify) => {
       const results: SignalResult[] = [];
       for (const symbol of toScan) {
         try {
-          const candles = await fetchKlines(symbol, tf, 520);
+          const candles = await fetchKlines(symbol, tf || '1h', 520);
           if (candles.length < 60) continue;
-          const r = analyzeCandles(candles, symbol, tf, health.marketRegime);
+          const r = analyzeCandles(candles, symbol, tf || '1h', health.marketRegime);
           results.push(r);
           await new Promise(res => setTimeout(res, 100));
         } catch {}
