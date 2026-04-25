@@ -4341,6 +4341,14 @@ const NEXUS = (() => {
   }
   function addHistory(sig) {
     const h = getHistory();
+    const sigTime = sig.time || sig.createdAt || sig.candleCloseTime || '';
+    const exists = h.some(item =>
+      item.symbol === sig.symbol &&
+      item.timeframe === sig.timeframe &&
+      item.signal === sig.signal &&
+      (item.time || item.createdAt || item.candleCloseTime || '') === sigTime
+    );
+    if (exists) return;
     h.unshift(sig);
     if (h.length > 50) h.length = 50;
     localStorage.setItem(LS_ALERT_HIST, JSON.stringify(h));
@@ -4391,7 +4399,9 @@ const NEXUS = (() => {
     checkPushStatus();
     if (perm === 'granted' && backendConnected) {
       try {
-        const vapidRes = await api('/api/push/vapidPublicKey');
+        await registerDevice();
+
+        const vapidRes = await api('/api/push/vapid-public-key');
         const vapidPublicKey = vapidRes.publicKey;
         if (!vapidPublicKey) throw new Error('VAPID key not found');
         
@@ -4405,7 +4415,12 @@ const NEXUS = (() => {
         }
         await api('/api/push/subscribe', {
           method: 'POST',
-          body: JSON.stringify({ userId, subscription: sub })
+          body: JSON.stringify({
+            userId,
+            subscription: sub,
+            userAgent: navigator.userAgent,
+            platform: navigator.userAgentData?.platform || navigator.platform || 'web'
+          })
         });
         $('pushStatusText').textContent = '✅ Web-Push Aktif (Backend)';
       } catch (e) {
@@ -4554,7 +4569,7 @@ const NEXUS = (() => {
     if (!backendConnected) return;
     try {
       const s = await api('/api/settings/' + userId);
-      if (s) {
+      if (s && !s.error) {
         alertCfg.universe = s.universeMode;
         alertCfg.customCoins = JSON.parse(s.symbols || '[]');
         alertCfg.timeframes = JSON.parse(s.timeframes || '["1h","4h"]');
@@ -4693,6 +4708,48 @@ const NEXUS = (() => {
     );
   }
 
+  async function triggerManualScanV2() {
+    const btn = $('manualScanBtn');
+    if (!backendConnected || !btn) return;
+
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Tarama baslatildi...';
+
+    try {
+      const symbols = alertCfg.universe === 'WATCHLIST' ? getWatchlist() : alertCfg.customCoins;
+      const tf = alertCfg.timeframes[0] || '1h';
+
+      const res = await api('/api/signals/scan-now', {
+        method: 'POST',
+        body: JSON.stringify({ userId, symbols: symbols.length ? symbols : null, tf })
+      });
+
+      const scannedCount = res?.scanned || symbols.length || 0;
+      btn.textContent = `Tamam: ${scannedCount} coin tarandi`;
+
+      const latestSignals = Array.isArray(res?.signals) ? res.signals : null;
+      if (latestSignals) {
+        latestSignals.forEach(s => addHistory(s));
+        renderHistory();
+      } else {
+        const latest = await api(`/api/signals/latest?userId=${userId}&limit=10`);
+        if (latest?.signals) {
+          latest.signals.forEach(s => addHistory(s));
+          renderHistory();
+        }
+      }
+    } catch (e) {
+      btn.textContent = 'Hata olustu';
+      console.error(e);
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }, 3000);
+    }
+  }
+
   async function triggerManualScan() {
     const btn = $('manualScanBtn');
     if (!backendConnected || !btn) return;
@@ -4823,7 +4880,7 @@ const NEXUS = (() => {
     $('wlAddBtn')?.addEventListener('click', addWatchlistItem);
     $('wlAddInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') addWatchlistItem(); });
 
-    $('manualScanBtn')?.addEventListener('click', triggerManualScan);
+    $('manualScanBtn')?.addEventListener('click', triggerManualScanV2);
 
     // Refresh history every minute
     setInterval(renderHistory, 60_000);

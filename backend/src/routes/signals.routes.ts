@@ -5,6 +5,7 @@ import { analyzeCandles, SignalResult } from '../services/signalEngine.service';
 import { getMarketHealth } from '../services/marketHealth.service';
 import { redis, CacheKey, TTL } from '../services/cache.service';
 import { isValidTimeframe } from '../utils/timeframes';
+import { scanForUser } from '../workers/signalScanner.worker';
 
 export const signalRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/signals/latest?userId=...&limit=20
@@ -77,10 +78,20 @@ export const signalRoutes: FastifyPluginAsync = async (fastify) => {
       
       // If userId is provided, we can trigger the official user-scoped scan
       if (userId) {
-        const { scanForUser } = await import('../workers/signalScanner.worker');
         // This will save results to DB and send push notifications if criteria are met
-        await scanForUser(userId, true); 
-        return { success: true, message: 'User scan triggered' };
+        await scanForUser(userId, true);
+        const latestSignals = await prisma.signalEvent.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        });
+        return {
+          success: true,
+          scanned: symbols?.length ?? 0,
+          signalCount: latestSignals.length,
+          signals: latestSignals,
+          message: 'User scan completed',
+        };
       }
 
       // Fallback for anonymous or specific symbol scan (doesn't save to DB)

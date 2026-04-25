@@ -87,7 +87,7 @@ export async function sendPushToUser(
   payload: PushPayload,
   signalEventId?: string
 ): Promise<{ sent: number; failed: number }> {
-  if (!env.VAPID_PUBLIC_KEY) {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
     logger.warn('VAPID keys not configured — push skipped');
     return { sent: 0, failed: 0 };
   }
@@ -103,7 +103,7 @@ export async function sendPushToUser(
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify(payload),
-        { TTL: 3600, urgency: 'normal' }
+        { TTL: 60 * 60 * 6, urgency: 'high' }
       );
       sent++;
 

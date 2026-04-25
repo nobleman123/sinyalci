@@ -16,12 +16,6 @@ import { analyzeRoutes }  from './routes/analyze.routes';
 import { signalRoutes }   from './routes/signals.routes';
 import { analyticsRoutes } from './routes/analytics.routes';
 
-// Workers (background jobs)
-import { startMarketHealthWorker }  from './workers/marketHealth.worker';
-import { startSymbolUniverseWorker }from './workers/symbolUniverse.worker';
-import { startSignalScannerWorker } from './workers/signalScanner.worker';
-import { startOutcomeEvaluatorWorker } from './workers/outcomeEvaluator.worker';
-
 const fastify = Fastify({
   logger: false,
   trustProxy: true,
@@ -34,6 +28,8 @@ async function bootstrap() {
       env.FRONTEND_ORIGIN,
       'https://sinyalci.com',
       'https://www.sinyalci.com',
+      'https://sinyalci-crypto-2026.web.app',
+      'https://sinyalci-crypto-2026.firebaseapp.com',
       'https://sinyalci-frontend.onrender.com',
       'http://localhost:3000',
       'http://localhost:5173',
@@ -76,10 +72,6 @@ async function bootstrap() {
   await connectDB();
 
   // ── Background workers ────────────────────────────────────────────────
-  startMarketHealthWorker();
-  startSymbolUniverseWorker();
-  startSignalScannerWorker();
-  startOutcomeEvaluatorWorker();
 
   // ── Start server ──────────────────────────────────────────────────────
   await fastify.listen({ port: env.PORT, host: '0.0.0.0' });

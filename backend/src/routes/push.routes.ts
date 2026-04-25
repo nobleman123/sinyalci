@@ -10,6 +10,13 @@ export const pushRoutes: FastifyPluginAsync = async (fastify) => {
     return { publicKey: key };
   });
 
+  // Compatibility alias for existing frontend builds
+  fastify.get('/vapidPublicKey', async (_req, reply) => {
+    const key = getVapidPublicKey();
+    if (!key) return reply.code(503).send({ error: 'VAPID not configured' });
+    return { publicKey: key };
+  });
+
   // POST /api/push/subscribe
   fastify.post('/subscribe', async (req, reply) => {
     const { userId, subscription, userAgent, platform } =
@@ -17,6 +24,24 @@ export const pushRoutes: FastifyPluginAsync = async (fastify) => {
     if (!userId || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return reply.code(400).send({ error: 'Missing required fields' });
     }
+
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {
+        deviceName: userAgent?.slice(0, 100) || undefined,
+      },
+      create: {
+        id: userId,
+        deviceName: userAgent?.slice(0, 100) || 'Web Push Device',
+      },
+    });
+
+    await prisma.userSignalSettings.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+    });
+
     const sub = await prisma.pushSubscription.upsert({
       where:  { endpoint: subscription.endpoint },
       update: { userId, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth, isActive: true, userAgent, platform },

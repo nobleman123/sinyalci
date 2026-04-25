@@ -30,7 +30,8 @@ self.addEventListener('push', (event) => {
     badge:         payload.badge  || '/icons/badge-72.png',
     tag:           payload.tag    || 'nexus-signal',
     data:          payload.data   || {},
-    vibrate:       [200, 100, 200],
+    vibrate:       payload.data?.vibrate || payload.vibrate || [200, 100, 200],
+    renotify:      true,
     requireInteraction: false,
     actions: [
       { action: 'open',    title: '📊 Grafiği Aç' },

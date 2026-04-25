@@ -4,8 +4,9 @@ services:
     env: docker
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    dockerCommand: npm run start:web
     region: frankfurt
-    plan: free
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -28,7 +29,7 @@ services:
       - key: VAPID_SUBJECT
         value: "mailto:admin@nexus-signal.app"
       - key: FRONTEND_ORIGIN
-        value: "https://sinyalci.com"
+        value: "https://sinyalci-crypto-2026.web.app"
 
   - type: web
     name: sinyalci-frontend
@@ -43,8 +44,9 @@ services:
     env: docker
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
+    dockerCommand: npm run start:worker
     region: frankfurt
-    plan: free
+    plan: starter
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -57,6 +59,12 @@ services:
           property: connectionString
       - key: NODE_ENV
         value: production
+      - key: VAPID_PUBLIC_KEY
+        value: "BLh3lNsf8SGAJt1-3HgpN4JJxkwkeuHEu2ym83C5SQJndOG0GXMLkeZxbDVunwY9Mu4C3MJsJafz_dIbwVztAug"
+      - key: VAPID_PRIVATE_KEY
+        value: "GsPQXn3ORqCmM7TD5Hi7WZnzMqjo4ynOmvhKdIYvkT4"
+      - key: VAPID_SUBJECT
+        value: "mailto:admin@nexus-signal.app"
 
   - type: redis
     name: sinyalci-redis
