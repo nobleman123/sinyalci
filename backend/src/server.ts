@@ -73,6 +73,16 @@ async function bootstrap() {
   // ── Start server ──────────────────────────────────────────────────────
   await fastify.listen({ port: env.PORT, host: '0.0.0.0' });
   logger.info(`🚀 NEXUS Backend running on port ${env.PORT}`);
+
+  // ── Keep-alive (Prevent Render Sleep) ─────────────────────────────────
+  if (env.NODE_ENV === 'production') {
+    const backendUrl = 'https://sinyalci-backend.onrender.com';
+    setInterval(() => {
+      fetch(`${backendUrl}/health`)
+        .then(() => logger.info('Keep-alive ping sent to prevent sleep.'))
+        .catch(err => logger.warn('Keep-alive ping failed', { error: err.message }));
+    }, 10 * 60 * 1000); // Her 10 dakikada bir ping atar
+  }
 }
 
 // ── Graceful shutdown ────────────────────────────────────────────────────
