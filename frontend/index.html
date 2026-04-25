@@ -4243,14 +4243,19 @@ const NEXUS = (() => {
   async function api(path, opts = {}) {
     const url = backendUrl + path;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), opts.timeout || 15000);
+    // FIX: varsayılan timeout 15sn yerine 30sn — backend cold-start response
+    const timer = setTimeout(() => controller.abort(), opts.timeout || 30000);
     try {
       const res = await fetch(url, {
         ...opts,
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        cache: 'no-store',
       });
-      if (!res.ok) throw new Error('API Error: ' + res.status);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errBody.error || `HTTP ${res.status}`);
+      }
       return await res.json();
     } finally {
       clearTimeout(timer);
@@ -4258,76 +4263,107 @@ const NEXUS = (() => {
   }
 
   async function checkBackend() {
-    const dot = $('backendDot');
-    const txt = $('backendStatusText');
-    const inp = $('backendUrlInput');
-    if(inp) inp.value = backendUrl;
-    
-    if(txt) txt.textContent = 'Bağlantı kontrol ediliyor (Uyanıyor olabilir)...';
-    if(dot) dot.className = 'status-dot';
-
-    const btn = $('testPushBtn');
+    const dot  = $('backendDot');
+    const txt  = $('backendStatusText');
+    const inp  = $('backendUrlInput');
+    const btn  = $('testPushBtn');
     const mbtn = $('manualScanBtn');
-    if (btn) btn.disabled = true;
+
+    if (inp)  inp.value = backendUrl;
+    if (dot)  dot.className = 'status-dot';
+    if (btn)  btn.disabled = true;
     if (mbtn) mbtn.disabled = true;
 
-    let retries = 3;
+    // ── FIX: Render free tier soğuk başlatma ~30-50sn sürer.
+    //    Önceki timeout (25sn × 3 deneme + 3sn bekleme) çok kısaydı.
+    //    Yeni: 55sn timeout, denemeler arası artan bekleme (0 / 8 / 15 sn).
+    const TIMEOUTS  = [55000, 55000, 55000];
+    const WAIT_GAPS = [0, 8000, 15000]; // denemeler arası bekleme
+    const MAX_TRIES = 3;
     let success = false;
-    
-    while(retries > 0 && !success) {
+
+    for (let attempt = 0; attempt < MAX_TRIES && !success; attempt++) {
+      // denemeler arası bekleme
+      if (WAIT_GAPS[attempt] > 0) {
+        const waitSec = WAIT_GAPS[attempt] / 1000;
+        if (txt) txt.textContent = `⏳ ${waitSec}sn sonra tekrar deneniyor... (${attempt + 1}/${MAX_TRIES})`;
+        await new Promise(r => setTimeout(r, WAIT_GAPS[attempt]));
+      }
+
+      // ilk denemede "uyanıyor olabilir" uyarısını göster
+      if (attempt === 0) {
+        if (txt) txt.textContent = '🔄 Backend bağlanıyor... (ilk açılışta 30-60 sn sürebilir ☕)';
+      } else {
+        if (txt) txt.textContent = `🔄 Deneme ${attempt + 1}/${MAX_TRIES}... Backend uyanıyor olabilir.`;
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000); 
+      const timeoutId  = setTimeout(() => controller.abort(), TIMEOUTS[attempt]);
 
       try {
-        const res = await fetch(backendUrl + '/health', { signal: controller.signal });
+        const res = await fetch(backendUrl + '/health', {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
         clearTimeout(timeoutId);
+
         if (res.ok) {
+          const data = await res.json().catch(() => ({}));
           backendConnected = true;
           success = true;
-          if(dot) dot.className = 'status-dot ok';
-          if(txt) txt.textContent = 'Bağlı (' + backendUrl + ')';
-          loadSettingsFromBackend(); 
-          break;
+          if (dot) dot.className = 'status-dot ok';
+          if (txt) txt.textContent = `✅ Bağlı · v${data.version || '?'} · ${backendUrl}`;
+          if (btn)  btn.disabled = false;
+          if (mbtn) mbtn.disabled = false;
+          loadSettingsFromBackend();
         } else {
           throw new Error('HTTP ' + res.status);
         }
-      } catch(e) {
+      } catch (e) {
         clearTimeout(timeoutId);
-        retries--;
-        if (retries > 0) {
-          if(txt) txt.textContent = `Tekrar deneniyor... (${retries} deneme kaldı)`;
-          await new Promise(r => setTimeout(r, 3000)); // wait 3s before retry
-        } else {
+        if (attempt === MAX_TRIES - 1) {
+          // tüm denemeler başarısız
           backendConnected = false;
-          if(dot) dot.className = 'status-dot err';
-          if(txt) txt.textContent = e.name === 'AbortError' ? 'Zaman aşımı (Backend uyanamadı)' : 'Bağlantı yok';
+          if (dot) dot.className = 'status-dot err';
+          const isTimeout = e.name === 'AbortError';
+          if (txt) txt.textContent = isTimeout
+            ? `❌ Zaman aşımı — Backend ${TIMEOUTS[0]/1000}sn içinde yanıt vermedi. Render panelinden log kontrol edin.`
+            : `❌ Bağlantı hatası: ${e.message}`;
         }
       }
     }
-    
-    if (btn) btn.disabled = !backendConnected;
-    if (mbtn) mbtn.disabled = !backendConnected;
   }
 
   async function registerDevice() {
-    if (!backendConnected) return alert('Önce backend bağlantısı kurmalısınız.');
+    // ── FIX: Backend bağlı değilse önce bağlanmayı dene, sonra devam et.
+    if (!backendConnected) {
+      const msg = $('deviceStatusMsg');
+      if (msg) msg.textContent = '⏳ Backend\'e bağlanılıyor, lütfen bekleyin...';
+      await checkBackend();
+      if (!backendConnected) {
+        if (msg) msg.textContent = '❌ Backend bağlantısı kurulamadı. Sayfayı yenileyin.';
+        return;
+      }
+    }
     try {
       const res = await api('/api/device/register', {
         method: 'POST',
         body: JSON.stringify({
           userId,
-          deviceName: navigator.userAgent.substring(0,30),
-          email: 'local@nexus.com'
-        })
+          deviceName: navigator.userAgent.substring(0, 60),
+          email: 'local@nexus.com',
+        }),
       });
-      if (res.userId) {
+      if (res?.userId) {
         userId = res.userId;
         localStorage.setItem('nexus_userId', userId);
       }
-      $('deviceStatusMsg').textContent = '✅ Cihaz kaydedildi. Şimdi bildirim izni alabilirsiniz.';
+      const msg = $('deviceStatusMsg');
+      if (msg) msg.textContent = '✅ Cihaz kaydedildi. Şimdi bildirim izni alabilirsiniz.';
       loadSettingsFromBackend();
-    } catch(e) {
-      $('deviceStatusMsg').textContent = '❌ Cihaz kaydı başarısız: ' + e.message;
+    } catch (e) {
+      const msg = $('deviceStatusMsg');
+      if (msg) msg.textContent = '❌ Cihaz kaydı başarısız: ' + e.message;
     }
   }
 
@@ -4394,39 +4430,92 @@ const NEXUS = (() => {
   }
 
   async function requestPush() {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) {
+      alert('Bu tarayıcı bildirimleri desteklemiyor.');
+      return;
+    }
+
+    const statusTxt = $('pushStatusText');
+    const dot       = $('pushDot');
+
+    // ── Adım 1: Bildirim izni al
+    if (statusTxt) statusTxt.textContent = '⏳ Bildirim izni isteniyor...';
     const perm = await Notification.requestPermission();
     checkPushStatus();
-    if (perm === 'granted' && backendConnected) {
-      try {
-        await registerDevice();
 
-        const vapidRes = await api('/api/push/vapid-public-key');
-        const vapidPublicKey = vapidRes.publicKey;
-        if (!vapidPublicKey) throw new Error('VAPID key not found');
-        
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-          });
-        }
-        await api('/api/push/subscribe', {
-          method: 'POST',
-          body: JSON.stringify({
-            userId,
-            subscription: sub,
-            userAgent: navigator.userAgent,
-            platform: navigator.userAgentData?.platform || navigator.platform || 'web'
-          })
+    if (perm !== 'granted') {
+      if (statusTxt) statusTxt.textContent = '❌ Bildirim izni reddedildi. Tarayıcı ayarlarından izin verin.';
+      return;
+    }
+
+    // ── Adım 2: Backend bağlantısı yoksa bağlan
+    if (!backendConnected) {
+      if (statusTxt) statusTxt.textContent = '⏳ Backend\'e bağlanılıyor... (30-60sn sürebilir)';
+      await checkBackend();
+    }
+
+    if (!backendConnected) {
+      // Backend yoksa sadece browser notification yeterli — SW push devre dışı
+      if (statusTxt) statusTxt.textContent = '⚠️ Backend yok — sadece tarayıcı içi bildirim aktif (push yok)';
+      if (dot) dot.className = 'status-dot warn';
+      return;
+    }
+
+    // ── Adım 3: Cihaz kaydı
+    if (statusTxt) statusTxt.textContent = '⏳ Cihaz kaydediliyor...';
+    try {
+      await registerDevice();
+    } catch (e) {
+      if (statusTxt) statusTxt.textContent = '❌ Cihaz kaydı başarısız: ' + e.message;
+      return;
+    }
+
+    // ── Adım 4: VAPID public key al
+    if (statusTxt) statusTxt.textContent = '⏳ VAPID anahtarı alınıyor...';
+    let vapidPublicKey;
+    try {
+      const vapidRes = await api('/api/push/vapid-public-key');
+      vapidPublicKey = vapidRes?.publicKey;
+      if (!vapidPublicKey) throw new Error('VAPID key boş döndü');
+    } catch (e) {
+      if (statusTxt) statusTxt.textContent = '❌ VAPID key alınamadı: ' + e.message;
+      return;
+    }
+
+    // ── Adım 5: Service Worker kaydet ve push subscribe ol
+    if (statusTxt) statusTxt.textContent = '⏳ Service Worker kaydediliyor...';
+    try {
+      // FIX: scope açık belirtilmeli — Render static servis kök path'te çalışır
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready; // SW aktif olana kadar bekle
+
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        if (statusTxt) statusTxt.textContent = '⏳ Push aboneliği oluşturuluyor...';
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
-        $('pushStatusText').textContent = '✅ Web-Push Aktif (Backend)';
-      } catch (e) {
-        console.error('Push sub error:', e);
-        $('pushStatusText').textContent = '❌ Backend Push Bağlantısı Kurulamadı';
       }
+
+      // ── Adım 6: Subscription'ı backend'e kaydet
+      if (statusTxt) statusTxt.textContent = '⏳ Abonelik kaydediliyor...';
+      await api('/api/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId,
+          subscription: sub.toJSON(),
+          userAgent: navigator.userAgent,
+          platform: navigator.userAgentData?.platform || navigator.platform || 'web',
+        }),
+      });
+
+      if (statusTxt) statusTxt.textContent = '✅ Web-Push Aktif! Sinyaller bildirim olarak gelecek.';
+      if (dot) dot.className = 'status-dot ok';
+    } catch (e) {
+      console.error('Push subscribe error:', e);
+      if (statusTxt) statusTxt.textContent = '❌ Push kaydı başarısız: ' + e.message;
+      if (dot) dot.className = 'status-dot err';
     }
   }
 
@@ -4839,7 +4928,7 @@ const NEXUS = (() => {
   function init() {
     registerSW();
     checkPushStatus();
-    checkBackend(); // Async connect
+    checkBackend(); // Async connect — non-blocking
     initIndCards();
     initUniversePills();
     initAlertTfToggles();
@@ -4849,10 +4938,31 @@ const NEXUS = (() => {
     renderWatchlist();
 
     $('requestPushBtn')?.addEventListener('click', requestPush);
-    $('testPushBtn')?.addEventListener('click', () => {
-      if (backendConnected) api('/api/push/test', { method: 'POST', body: JSON.stringify({ userId }) }).catch(console.error);
-      else testPush();
+
+    // FIX: Test push — backend varsa server'dan gönder, yoksa browser Notification
+    $('testPushBtn')?.addEventListener('click', async () => {
+      const btn = $('testPushBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Gönderiliyor...'; }
+      try {
+        if (backendConnected) {
+          await api('/api/push/test', {
+            method: 'POST',
+            body: JSON.stringify({ userId }),
+          });
+          if (btn) btn.textContent = '✅ Gönderildi';
+        } else {
+          testPush();
+          if (btn) btn.textContent = '✅ Tarayıcı testi OK';
+        }
+      } catch (e) {
+        if (btn) btn.textContent = '❌ ' + e.message;
+      } finally {
+        setTimeout(() => {
+          if (btn) { btn.disabled = false; btn.textContent = '🧪 Test Bildirimi Gönder'; }
+        }, 3000);
+      }
     });
+
     $('saveAlertSettingsBtn')?.addEventListener('click', saveSettings);
     $('clearHistoryBtn')?.addEventListener('click', () => {
       localStorage.removeItem(LS_ALERT_HIST);
@@ -4862,7 +4972,7 @@ const NEXUS = (() => {
     });
 
     $('backendConnectBtn')?.addEventListener('click', () => {
-      backendUrl = $('backendUrlInput')?.value || 'http://localhost:4000';
+      backendUrl = $('backendUrlInput')?.value?.trim() || 'https://sinyalci-backend.onrender.com';
       localStorage.setItem('nexus_backendUrl', backendUrl);
       checkBackend();
     });

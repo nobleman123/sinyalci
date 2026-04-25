@@ -1,4 +1,8 @@
 services:
+  # ── Backend (Web + Inline Workers) ───────────────────────────────────────
+  # FIX: Worker servisi kaldırıldı. Tüm cron job'lar server.ts içinde
+  #      başlatılıyor. Ücretsiz planda iki ayrı servis yerine tek servis
+  #      çalıştırıldığında keep-alive + worker birlikte sağlıklı çalışır.
   - type: web
     name: sinyalci-backend
     env: docker
@@ -28,9 +32,11 @@ services:
         value: "GsPQXn3ORqCmM7TD5Hi7WZnzMqjo4ynOmvhKdIYvkT4"
       - key: VAPID_SUBJECT
         value: "mailto:admin@nexus-signal.app"
+      # FIX: FRONTEND_ORIGIN artık Render frontend URL'ini gösteriyor
       - key: FRONTEND_ORIGIN
-        value: "https://sinyalci-crypto-2026.web.app"
+        value: "https://sinyalci-frontend.onrender.com"
 
+  # ── Frontend (Static) ─────────────────────────────────────────────────────
   - type: web
     name: sinyalci-frontend
     env: static
@@ -39,33 +45,7 @@ services:
       - sinyalci.com
       - www.sinyalci.com
 
-  - type: worker
-    name: sinyalci-worker
-    env: docker
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
-    dockerCommand: npm run start:worker
-    region: frankfurt
-    plan: starter
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: sinyalci-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: sinyalci-redis
-          property: connectionString
-      - key: NODE_ENV
-        value: production
-      - key: VAPID_PUBLIC_KEY
-        value: "BLh3lNsf8SGAJt1-3HgpN4JJxkwkeuHEu2ym83C5SQJndOG0GXMLkeZxbDVunwY9Mu4C3MJsJafz_dIbwVztAug"
-      - key: VAPID_PRIVATE_KEY
-        value: "GsPQXn3ORqCmM7TD5Hi7WZnzMqjo4ynOmvhKdIYvkT4"
-      - key: VAPID_SUBJECT
-        value: "mailto:admin@nexus-signal.app"
-
+  # ── Redis ─────────────────────────────────────────────────────────────────
   - type: redis
     name: sinyalci-redis
     region: frankfurt
