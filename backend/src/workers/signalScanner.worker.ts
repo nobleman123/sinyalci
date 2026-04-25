@@ -90,7 +90,10 @@ export async function scanForUser(userId: string, force: boolean = false) {
   if (dueTimeframes.length === 0) return;
 
   const symbols = await getSymbolsForUser(settings);
-  if (symbols.length === 0) return;
+  if (symbols.length === 0) {
+    logger.warn('No symbols found for user scan', { userId, mode: settings.universeMode });
+    return;
+  }
 
   const health = await getMarketHealth();
   let excluded: string[] = [];
@@ -236,6 +239,7 @@ export function startSignalScannerWorker() {
       });
 
       // Scan each user independently
+      logger.info(`💓 Scanner Heartbeat: Processing ${allSettings.length} active users`);
       await Promise.allSettled(
         allSettings.map((s: { userId: string }) => scanForUser(s.userId, false))
       );

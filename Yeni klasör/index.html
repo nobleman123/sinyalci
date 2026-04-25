@@ -4214,7 +4214,7 @@ const NEXUS = (() => {
 
   /* ── Default alert config ── */
   const DEFAULT_ALERT_CFG = {
-    universe: 'TOP_100',
+    universe: 'WATCHLIST',
     customCoins: [],
     timeframes: ['1h','4h'],
     indicators: ['UT','VRT','SUPER'],
@@ -4909,19 +4909,6 @@ const NEXUS = (() => {
     renderWatchlist();
   }
 
-  async function loadHistoryFromBackend() {
-    if (!backendConnected || !userId) return;
-    try {
-      const res = await api(`/api/signals/latest?userId=${userId}&limit=20`);
-      if (res?.signals && Array.isArray(res.signals)) {
-        res.signals.forEach(s => addHistory(s));
-        renderHistory();
-      }
-    } catch (e) {
-      console.warn('History sync failed', e);
-    }
-  }
-
   /* ── Service Worker ── */
   async function registerSW() {
     if ('serviceWorker' in navigator) {
@@ -4949,7 +4936,6 @@ const NEXUS = (() => {
     renderCoinTags();
     renderHistory();
     renderWatchlist();
-    loadHistoryFromBackend();
 
     $('requestPushBtn')?.addEventListener('click', requestPush);
 
