@@ -5151,6 +5151,13 @@ const NEXUS = (() => {
   const LEGACY_BACKEND_KEY = 'nexus_backendUrl';
   const CANONICAL_BACKEND_URL =
     (window.SINYALCI_CONFIG?.WORKER_URL || 'https://sinyalci-worker.succimer.workers.dev').replace(/\/$/, '');
+  const LOCAL_BACKEND_CANDIDATES = [
+    'http://127.0.0.1:8787',
+    'http://localhost:8787',
+    'http://127.0.0.1:4000',
+    'http://localhost:4000',
+  ];
+  let activeBackendProfile = null;
 
   function isLegacyBackendUrl(url) {
     return typeof url === 'string' && LEGACY_RENDER_HOSTS.some(host => url.includes(host));
@@ -5176,6 +5183,50 @@ const NEXUS = (() => {
       (!isLegacyBackendUrl(storedLegacy) && storedLegacy) ||
       CANONICAL_BACKEND_URL
     );
+  }
+
+  function buildBackendCandidates(preferredUrl) {
+    const candidates = [
+      CANONICAL_BACKEND_URL,
+      window.SINYALCI_CONFIG?.WORKER_URL,
+      preferredUrl,
+      localStorage.getItem(WORKER_STORAGE_KEY),
+      localStorage.getItem(LEGACY_BACKEND_KEY),
+      ...LOCAL_BACKEND_CANDIDATES,
+    ]
+      .filter(Boolean)
+      .map(url => String(url).trim().replace(/\/$/, ''));
+
+    return [...new Set(candidates)];
+  }
+
+  async function probeBackend(baseUrl, timeoutMs = 12000) {
+    const healthPaths = ['/api/health', '/health', '/api/health/'];
+
+    for (const healthPath of healthPaths) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const res = await fetch(baseUrl + healthPath, {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) continue;
+
+        const data = await res.json().catch(() => ({}));
+        const kind = healthPath.startsWith('/api/') ? 'worker' : 'node';
+        const requiresDb = kind === 'worker' && typeof data?.dbConnected === 'boolean';
+        if (requiresDb && !data.dbConnected) continue;
+        return { ok: true, baseUrl, healthPath, data, kind };
+      } catch (_err) {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    return null;
   }
 
   let alertCfg = { ...DEFAULT_ALERT_CFG, ...JSON.parse(localStorage.getItem(LS_ALERT_CFG) || '{}') };
@@ -5282,12 +5333,56 @@ const NEXUS = (() => {
     }
   }
 
+  async function checkBackendV2() {
+    const dot = $('backendDot');
+    const txt = $('backendStatusText');
+    const inp = $('backendUrlInput');
+    const btn = $('testPushBtn');
+    const mbtn = $('manualScanBtn');
+
+    if (inp) inp.value = backendUrl;
+    if (dot) dot.className = 'status-dot';
+    if (btn) btn.disabled = true;
+    if (mbtn) mbtn.disabled = true;
+    if (txt) txt.textContent = 'Backend aranıyor... Cloudflare ve yerel adresler kontrol ediliyor.';
+
+    const candidates = buildBackendCandidates(backendUrl);
+    for (let index = 0; index < candidates.length; index++) {
+      const candidate = candidates[index];
+      if (txt) txt.textContent = `Backend aranıyor (${index + 1}/${candidates.length}): ${candidate}`;
+
+      const profile = await probeBackend(
+        candidate,
+        candidate.includes('localhost') || candidate.includes('127.0.0.1') ? 4000 : 12000
+      );
+      if (!profile) continue;
+
+      activeBackendProfile = profile;
+      backendUrl = persistBackendUrl(profile.baseUrl);
+      backendConnected = true;
+
+      if (inp) inp.value = backendUrl;
+      if (dot) dot.className = 'status-dot ok';
+      if (txt) txt.textContent = `✅ Bağlı · ${profile.kind === 'worker' ? 'Cloudflare Worker' : 'Local Backend'} · v${profile.data?.version || '?'} · ${backendUrl}`;
+      if (btn) btn.disabled = false;
+      if (mbtn) mbtn.disabled = false;
+      loadSettingsFromBackend();
+      return true;
+    }
+
+    activeBackendProfile = null;
+    backendConnected = false;
+    if (dot) dot.className = 'status-dot err';
+    if (txt) txt.textContent = '❌ Backend bulunamadı. Cloudflare Worker ve localhost adayları denendi.';
+    return false;
+  }
+
   async function registerDevice() {
     // ── FIX: Backend bağlı değilse önce bağlanmayı dene, sonra devam et.
     if (!backendConnected) {
       const msg = $('deviceStatusMsg');
       if (msg) msg.textContent = '⏳ Backend\'e bağlanılıyor, lütfen bekleyin...';
-      await checkBackend();
+      await checkBackendV2();
       if (!backendConnected) {
         if (msg) msg.textContent = '❌ Backend bağlantısı kurulamadı. Sayfayı yenileyin.';
         return;
@@ -5399,7 +5494,7 @@ const NEXUS = (() => {
     // ── Adım 2: Backend bağlantısı yoksa bağlan
     if (!backendConnected) {
       if (statusTxt) statusTxt.textContent = '⏳ Backend\'e bağlanılıyor... (30-60sn sürebilir)';
-      await checkBackend();
+      await checkBackendV2();
     }
 
     if (!backendConnected) {
@@ -5889,7 +5984,7 @@ const NEXUS = (() => {
   function init() {
     registerSW();
     checkPushStatus();
-    checkBackend(); // Async connect — non-blocking
+    checkBackendV2(); // Async connect — non-blocking
     initIndCards();
     initUniversePills();
     initAlertTfToggles();
@@ -5935,7 +6030,7 @@ const NEXUS = (() => {
 
     $('backendConnectBtn')?.addEventListener('click', () => {
       backendUrl = persistBackendUrl($('backendUrlInput')?.value?.trim() || CANONICAL_BACKEND_URL);
-      checkBackend();
+      checkBackendV2();
     });
     $('registerDeviceBtn')?.addEventListener('click', registerDevice);
 
@@ -6217,7 +6312,7 @@ const WORKER = (() => {
       addLog('Health check başlatılıyor...');
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 10000);
-      const res = await fetch(workerUrl + '/api/health/', { signal: ctrl.signal, cache: 'no-store' });
+      const res = await fetch(workerUrl + '/api/health', { signal: ctrl.signal, cache: 'no-store' });
       clearTimeout(timer);
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

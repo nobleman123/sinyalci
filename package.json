@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "dev:worker:local": "cd backend-cloudflare-worker && npm run dev",
+    "deploy:frontend": "npx firebase-tools deploy --only hosting --project sinyalci-crypto-2026 --non-interactive"
+  },
   "devDependencies": {
     "prisma": "^5.22.0"
   },

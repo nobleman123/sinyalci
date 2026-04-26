@@ -1,7 +1,12 @@
 node_modules/
 dist/
 .env
+.dev.vars
+.dev.vars.*
+!backend-cloudflare-worker/.dev.vars.example
 .DS_Store
 backend/node_modules/
 backend/dist/
 frontend/node_modules/
+backend-cloudflare-worker/node_modules/
+backend-cloudflare-worker/.wrangler/

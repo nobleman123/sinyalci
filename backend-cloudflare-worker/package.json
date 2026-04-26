@@ -1,0 +1,19 @@
+{
+  "name": "sinyalci-worker",
+  "version": "1.0.0",
+  "description": "Serverless backend for Sinyalci",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.42.0",
+    "hono": "^4.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240405.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.48.0"
+  }
+}
