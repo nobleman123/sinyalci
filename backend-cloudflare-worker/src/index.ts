@@ -16,7 +16,11 @@ const app = new Hono<{ Bindings: Env }>();
 
 // CORS — allow all origins (restrict in production)
 app.use('/api/*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', '*'],
+  origin: (origin) => {
+    if (!origin) return '*';
+    if (origin.startsWith('http://') || origin.startsWith('https://')) return origin;
+    return '*';
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
