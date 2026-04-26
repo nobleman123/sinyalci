@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="/config.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root {
@@ -308,7 +309,11 @@ body{display:flex;flex-direction:column}
   transition:all 0.15s;
 }
 .chart-settings-btn:hover{color:var(--heading);border-color:var(--border)}
-#chartContainer{flex:1;overflow:hidden;min-height:0}
+#chartContainer{
+  flex:1;overflow:hidden;min-height:0;
+  position:relative;cursor:crosshair;
+  user-select:none;-webkit-user-select:none;
+}
 
 /* ── GUIDE TAB ── */
 #tab-guide{overflow-y:auto;flex-direction:column}
@@ -777,6 +782,10 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
   </div>
 
   <div class="hb-spacer"></div>
+  <div class="hb-item" id="backendStatusContainer">
+    <span class="hb-label">Backend</span>
+    <span id="backendStatusBadge" class="hb-badge bear"><span class="hb-dot">●</span> Bağlantı Yok</span>
+  </div>
   <div class="hb-time" id="hbTime">—</div>
 </div>
 
@@ -788,8 +797,8 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
   <div class="nav-tab" data-tab="scanner">
     <span class="nav-icon">🔍</span> Tarayıcı
   </div>
-  <div class="nav-tab" data-tab="deriv">
-    <span class="nav-icon">📊</span> Derivatives
+  <div class="nav-tab" data-tab="sleeping">
+    <span class="nav-icon">🌙</span> Uyuyan
   </div>
   <div class="nav-tab" data-tab="alerts" id="alertsNavTab">
     <span class="nav-icon">🔔</span> Bildirimler
@@ -913,6 +922,29 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
         </div>
       </div>
 
+      <!-- Sinyalci Puanı -->
+      <div class="sidebar-section" id="sinyalciScoreSection">
+        <div class="section-label">
+          <span class="tooltip-wrap" style="cursor:help">
+            🏆 Sinyalci Puanı
+            <span class="t-tip"><strong>Sinyalci Puanı (0–100)</strong><br>Tüm indikatörlerin ağırlıklı algoritma puanıdır. UT, VRT, ST yönleri; AMC momentum; SEQ setup kalitesi; R/R oranı; geç giriş riski cezası birleştirilir.<br><br>80+: Güçlü fırsat<br>60-80: Normal kurulum<br>40-60: Zayıf/Nötr<br>0-40: Olumsuz</span>
+          </span>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--r2);padding:12px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div id="sinyalciScoreVal" style="font-family:var(--mono);font-size:28px;font-weight:800;color:var(--heading)">—</div>
+            <div style="text-align:right">
+              <div id="sinyalciScoreLabel" style="font-size:11px;font-weight:700;color:var(--text3)">—</div>
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em">/ 100 puan</div>
+            </div>
+          </div>
+          <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:8px">
+            <div id="sinyalciScoreBar" style="height:100%;border-radius:3px;transition:width 0.5s,background 0.5s;width:0%;background:var(--text3)"></div>
+          </div>
+          <div id="sinyalciScoreBreakdown" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px"></div>
+        </div>
+      </div>
+
       <!-- Trade Plan -->
       <div class="sidebar-section">
         <div class="section-label">İşlem Planı</div>
@@ -1001,11 +1033,46 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
       </div>
 
       <!-- Chart -->
-      <div id="chartContainer" style="position:relative">
+      <div id="chartContainer" style="position:relative;flex:1;min-height:0">
         <div class="loading-overlay" id="chartLoading">
           <div class="loading-spinner"></div>
           <div class="loading-text">Grafik yükleniyor...</div>
         </div>
+        <!-- Zoom Controls -->
+        <div id="chartControls" style="
+          position:absolute;top:10px;right:10px;z-index:10;
+          display:flex;flex-direction:column;gap:4px;
+        ">
+          <button onclick="chartZoom(1.3)" title="Yakınlaştır (+)" style="
+            width:30px;height:30px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);
+            background:rgba(7,8,16,0.85);color:#94a3b8;cursor:pointer;font-size:14px;
+            display:flex;align-items:center;justify-content:center;
+            transition:all 0.15s;backdrop-filter:blur(8px);
+          " onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">+</button>
+          <button onclick="chartZoom(0.7)" title="Uzaklaştır (-)" style="
+            width:30px;height:30px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);
+            background:rgba(7,8,16,0.85);color:#94a3b8;cursor:pointer;font-size:14px;
+            display:flex;align-items:center;justify-content:center;
+            transition:all 0.15s;backdrop-filter:blur(8px);
+          " onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">−</button>
+          <button onclick="chartFit()" title="Tümünü Göster (F)" style="
+            width:30px;height:30px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);
+            background:rgba(7,8,16,0.85);color:#94a3b8;cursor:pointer;font-size:10px;
+            display:flex;align-items:center;justify-content:center;
+            transition:all 0.15s;backdrop-filter:blur(8px);font-weight:700;
+          " onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">FIT</button>
+          <button onclick="chartLast()" title="Son 200 Mum" style="
+            width:30px;height:30px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);
+            background:rgba(7,8,16,0.85);color:#94a3b8;cursor:pointer;font-size:9px;
+            display:flex;align-items:center;justify-content:center;
+            transition:all 0.15s;backdrop-filter:blur(8px);font-weight:700;
+          " onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">200</button>
+        </div>
+        <!-- Keyboard hint -->
+        <div style="
+          position:absolute;bottom:6px;left:50%;transform:translateX(-50%);z-index:5;
+          font-size:9px;color:rgba(100,116,139,0.5);pointer-events:none;white-space:nowrap;
+        ">⚡ Scroll:Zoom · Drag:Kaydır · F:Fit · +/−:Zoom · ←→:Kaydır</div>
       </div>
     </div>
   </div>
@@ -1095,6 +1162,52 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
       <span id="scanStatusText">Hazır</span>
       <div class="progress-bar"><div class="progress-fill" id="scanProgress" style="width:0%"></div></div>
       <span id="scanCount" style="margin-left:auto">—</span>
+    </div>
+  </div>
+
+  <!-- ── SLEEPING TAB ── -->
+  <div class="tab-pane" id="tab-sleeping" style="flex-direction:column;overflow-y:auto">
+    <div style="padding:14px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <span style="font-size:18px">🌙</span>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:var(--heading)">Uyuyan Coin Radar — Top 10</div>
+        <div style="font-size:11px;color:var(--text3)">Henüz yükselmemiş, breakout potansiyeli taşıyan, entry bölgesine yakın coinler</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span id="sleepingTabTime" style="font-size:10px;color:var(--text3);font-family:var(--mono)">—</span>
+        <button id="sleepingTabScanBtn" class="scan-btn" onclick="runSleepingTabScan()">⚡ Tara</button>
+      </div>
+    </div>
+
+    <!-- Sinyalci Puanı Açıklaması -->
+    <div style="padding:12px 16px;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(16,185,129,0.06));border-bottom:1px solid var(--border2)">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;font-weight:700">📊 Sinyalci Puanı Algoritması (0–100)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--text2)">
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">UT Bot <b style="color:var(--prep)">×20</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">VRT <b style="color:var(--prep)">×18</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">SuperTrend <b style="color:var(--prep)">×15</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">AMC <b style="color:var(--warn)">×20</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">SEQ <b style="color:var(--warn)">×15</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">R/R <b style="color:var(--bull2)">×8</b></span>
+        <span style="background:var(--bg3);padding:3px 8px;border-radius:6px;border:1px solid var(--border2)">Piyasa <b style="color:var(--bull2)">×4</b></span>
+        <span style="background:rgba(244,63,94,0.1);padding:3px 8px;border-radius:6px;border:1px solid rgba(244,63,94,0.2)">Geç Risk <b style="color:var(--bear)">−ceza</b></span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="sleepingTabStatus" style="display:none;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border2);flex-shrink:0;font-size:10px;color:var(--text3);font-family:var(--mono);display:flex;align-items:center;gap:8px">
+      <div style="flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+        <div id="sleepingTabProgress" style="height:100%;background:var(--prep2);border-radius:2px;transition:width 0.3s;width:0%"></div>
+      </div>
+      <span id="sleepingTabStatusText">Taranıyor...</span>
+    </div>
+
+    <!-- Token Listesi -->
+    <div id="sleepingTabList" style="padding:12px;display:flex;flex-direction:column;gap:8px;flex:1">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text3);gap:8px">
+        <div style="font-size:40px;opacity:0.3">🌙</div>
+        <div style="font-size:12px">Uyuyan coinleri taramak için "Tara" butonuna basın</div>
+      </div>
     </div>
   </div>
 
@@ -1318,6 +1431,39 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
           <div class="guide-rule">
             <div class="guide-rule-num">7</div>
             <p><strong>PULLBACK sinyalinde limit emirle gir.</strong> "PULLBACK BEKLE" sinyali görüldüğünde piyasadan girme. EMA20 veya entry zone'a geri çekilince limit emirle giriş yap.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeframe Strategy -->
+      <div class="guide-section">
+        <div class="guide-section-title">Zaman Dilimleri ve Giriş Stratejisi</div>
+        <div class="guide-grid" style="grid-template-columns:1fr 1fr">
+          <div class="guide-card">
+            <div class="guide-card-head">
+              <div class="guide-card-icon bull">⏱️</div>
+              <div>
+                <div class="guide-card-title">Kısa Vade (Day Trading)</div>
+              </div>
+            </div>
+            <ul>
+              <li><strong>İdeal Zaman Dilimleri:</strong> 5dk, 15dk, 30dk</li>
+              <li><strong>Kullanım Amacı:</strong> Gün içi hızlı fırsatlar, küçük dalgalanmalar.</li>
+              <li><strong>Giriş Stratejisi:</strong> HP ve NW indikatörleri 15dk'da güçlü çalışır. 1h veya 4h zaman diliminde ana trendi kontrol et (Ana trend long ise, sadece 15dk'da long sinyallerini değerlendir). Hızlı TP1 alınmalıdır.</li>
+            </ul>
+          </div>
+          <div class="guide-card">
+            <div class="guide-card-head">
+              <div class="guide-card-icon prep">⏳</div>
+              <div>
+                <div class="guide-card-title">Orta Vade (Swing Trading)</div>
+              </div>
+            </div>
+            <ul>
+              <li><strong>İdeal Zaman Dilimleri:</strong> 1h, 4h, 12h</li>
+              <li><strong>Kullanım Amacı:</strong> Trend takibi, majör destek/direnç kırılımları.</li>
+              <li><strong>Giriş Stratejisi:</strong> UT Bot ve SuperTrend bu dilimlerde daha güvenilirdir. Sinyallerin SEQ ve AMC onayı ile gelmesi beklenir. Gece uyuyan altcoinler genellikle bu dilimlerde tarandığında yüksek R/R fırsatları sunar.</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -1746,6 +1892,132 @@ body[data-theme="premium"]::before{background:radial-gradient(circle at 12% -8%,
     </div>
   </div>
 </div>
+</div>
+
+  <!-- ── BACKEND DURUMU TAB ── -->
+  <div class="tab-pane" id="tab-backend" style="flex-direction:column;overflow-y:auto">
+    <div style="max-width:860px;margin:0 auto;padding:20px;width:100%">
+      <div style="font-size:18px;font-weight:800;color:var(--heading);margin-bottom:4px">⚙️ Backend Durumu</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:20px">Cloudflare Worker + Supabase + Binance bağlantı durumu</div>
+      <!-- Worker URL Settings -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Worker URL Ayarı</div>
+        <div style="display:flex;gap:8px">
+          <input id="workerUrlInput" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--heading);font-family:var(--mono);font-size:12px;outline:none" placeholder="https://sinyalci-worker.YOUR-SUBDOMAIN.workers.dev">
+          <button id="workerConnectBtn" onclick="workerConnect()" style="padding:8px 16px;border-radius:8px;background:var(--prep2);border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--ui)">Bağlan</button>
+        </div>
+        <div id="workerUrlMsg" style="font-size:10px;color:var(--text3);margin-top:6px"></div>
+      </div>
+      <!-- Status Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">API Health</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="status-dot" id="workerHealthDot"></div>
+            <span id="workerHealthText" style="font-size:12px;color:var(--text2)">Bekliyor...</span>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Supabase DB</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="status-dot" id="supabaseHealthDot"></div>
+            <span id="supabaseHealthText" style="font-size:12px;color:var(--text2)">Bekliyor...</span>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Binance API</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="status-dot" id="binanceHealthDot"></div>
+            <span id="binanceHealthText" style="font-size:12px;color:var(--text2)">Bekliyor...</span>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">Son Cron Tarama</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="status-dot" id="cronHealthDot"></div>
+            <span id="cronHealthText" style="font-size:12px;color:var(--text2)">—</span>
+          </div>
+        </div>
+      </div>
+      <!-- Latest Real Signals -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)">Son Backend Sinyalleri</div>
+          <button onclick="WORKER.loadSignals()" style="padding:4px 12px;border-radius:6px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:10px;font-family:var(--ui);cursor:pointer">🔄 Yenile</button>
+        </div>
+        <div id="backendSignalsList">
+          <div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">Backend bağlantısı kurulmadan gerçek sinyal görüntülenemez.</div>
+        </div>
+      </div>
+      <!-- Backend Log -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Log</div>
+        <div id="backendLogPanel" style="background:var(--bg);border-radius:8px;padding:10px;font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.8;min-height:80px;max-height:200px;overflow-y:auto">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PERFORMANS TAB ── -->
+  <div class="tab-pane" id="tab-performance" style="flex-direction:column;overflow-y:auto">
+    <div style="max-width:1000px;margin:0 auto;padding:20px;width:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--heading);margin-bottom:2px">📊 Performans Analizi</div>
+          <div style="font-size:12px;color:var(--text2)">Geçmiş sinyaller ve win rate istatistikleri</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="perfPeriodSelect" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;color:var(--heading);font-size:11px;outline:none">
+            <option value="7d">Son 7 Gün</option>
+            <option value="30d" selected>Son 30 Gün</option>
+            <option value="90d">Son 90 Gün</option>
+          </select>
+          <button onclick="WORKER.loadPerformance()" style="padding:6px 14px;border-radius:8px;background:var(--prep2);border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--ui)">🔄 Yenile</button>
+        </div>
+      </div>
+      <!-- No data banner -->
+      <div style="background:linear-gradient(135deg,rgba(124,140,255,.1),rgba(16,185,129,.08));border:1px solid rgba(124,140,255,.25);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:22px">📡</span>
+        <div>
+          <div style="font-weight:700;color:var(--heading);font-size:13px;margin-bottom:4px">Gerçek Zamanlı Analiz</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.6">Bu panel backend'den gerçek sinyal geçmişini gösterir. Mock veri içermez. Veri birikiminden önce tablolar boş görünür.</div>
+        </div>
+      </div>
+      <!-- Signal history table -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">Geçmiş Sinyaller</div>
+          <div style="font-size:10px;color:var(--text3)" id="perfSignalCount">0 sinyal</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:var(--bg3)">
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Zaman</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Sembol</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">TF</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Sinyal</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Güven</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Risk</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Fiyat</th>
+                <th style="padding:8px 12px;text-align:left;color:var(--text3);font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)">Kaynak</th>
+              </tr>
+            </thead>
+            <tbody id="perfSignalTbody">
+              <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Backend bağlantısı kurulduktan sonra sinyaller görünecek.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Indicator perf grid -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px">İndikatör Performansı</div>
+        <div id="perfIndicatorGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+          <div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;grid-column:1/-1">Veri birikmesini bekleyin.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /appContent -->
 
 <!-- ═══ SETTINGS MODAL ═══ -->
@@ -1986,6 +2258,7 @@ function calcATR(candles, period = 14) {
   }
   let atr = tr.slice(0, period).reduce((a, b) => a + b, 0) / period;
   out[period - 1] = atr;
+  for (let i = period; i < candles.length; i++) {
     atr = (atr * (period - 1) + tr[i]) / period;
     out[i] = atr;
   }
@@ -2254,30 +2527,25 @@ function calcHPFilter(values, lambda) {
 function calcHPChannel(candles, fastPer=21, slowPer=100) {
   const closes = candles.map(c=>c.close);
   const n = closes.length;
-  if (n < slowPer) return closes.map(()=>null);
+  if (n < 4) return closes.map(()=>null);
 
-  const lambFast = 0.0625 / Math.pow(Math.sin(Math.PI/fastPer), 4);
-  const lambSlow = 0.0625 / Math.pow(Math.sin(Math.PI/slowPer), 4);
+  // Use stable multiplier formulas for lambda to avoid division by zero or huge numbers
+  const lambFast = Math.pow(fastPer, 2) * 10;
+  const lambSlow = Math.pow(slowPer, 2) * 100;
+
+  const fast = calcHPFilter(closes, lambFast);
+  const slow = calcHPFilter(closes, lambSlow);
 
   const out = [];
+  // Deviation channel over the whole series
+  let disp = 0;
+  for (let i = 0; i < n; i++) disp += Math.pow(fast[i] - slow[i], 2);
+  disp /= Math.max(1, n-1);
+  const dev = Math.sqrt(disp) * 1.5; // 1.5 dev is cleaner for charts
+
   for (let i = 0; i < n; i++) {
-    // Use rolling window of slowPer bars
-    const start = Math.max(0, i - slowPer + 1);
-    const win   = closes.slice(start, i+1);
-    const rev   = win.slice().reverse(); // newest first for HP filter
-
-    const fast  = calcHPFilter(rev, lambFast);
-    const slow  = calcHPFilter(fast, lambSlow);
-
-    const fastVal = fast[0];
-    const slowVal = slow[0];
-
-    // Deviation channel
-    let disp = 0;
-    const len = fast.length;
-    for (let j=0; j<len; j++) disp += (fast[j]-slow[j])**2;
-    disp /= Math.max(1, len-1);
-    const dev = Math.sqrt(disp) * 2;
+    const fastVal = fast[i];
+    const slowVal = slow[i];
 
     out.push({
       fast: fastVal,
@@ -2294,9 +2562,7 @@ function calcHPChannel(candles, fastPer=21, slowPer=100) {
       if (prev.direction >= 0 && out[i].direction === -1) out[i].rawSignal = 'SELL';
     }
   }
-  // Pad start with nulls
-  const padded = new Array(Math.max(0, n - out.length)).fill(null);
-  return [...padded, ...out];
+  return out;
 }
 
 // ═══════════════════════════════════════════
@@ -2305,16 +2571,18 @@ function calcHPChannel(candles, fastPer=21, slowPer=100) {
 function calcNWEnvelope(candles, bandwidth=8, mult=3) {
   const closes = candles.map(c=>c.close);
   const n = closes.length;
-  const lookback = Math.min(499, n-1);
   const out = new Array(n).fill(null);
 
   // Gaussian kernel
   const gauss = (x, h) => Math.exp(-(x*x)/(2*h*h));
 
   // Compute NW estimate at each bar using fixed endpoint (no repainting mode)
-  for (let i = lookback; i < n; i++) {
+  // Let's use a rolling window of 500
+  const lookback = Math.min(499, n-1);
+  for (let i = 0; i < n; i++) {
     let sum = 0, sumW = 0;
-    for (let j = 0; j <= lookback && j <= i; j++) {
+    const limit = Math.min(lookback, i);
+    for (let j = 0; j <= limit; j++) {
       const w = gauss(j, bandwidth);
       sum  += closes[i-j] * w;
       sumW += w;
@@ -2323,23 +2591,23 @@ function calcNWEnvelope(candles, bandwidth=8, mult=3) {
     out[i] = { nw: nwVal, upper: null, lower: null, rawSignal: null };
   }
 
-  // Compute MAE for envelope
-  let sae = 0; let saeCount = 0;
-  for (let i = lookback; i < n; i++) {
-    if (out[i]) { sae += Math.abs(closes[i] - out[i].nw); saeCount++; }
-  }
-  const mae = saeCount > 0 ? (sae / saeCount) * mult : 0;
-
-  for (let i = lookback; i < n; i++) {
-    if (out[i]) {
-      out[i].upper = out[i].nw + mae;
-      out[i].lower = out[i].nw - mae;
-      // Crossing signals
-      if (i > lookback && out[i-1]) {
-        const prevC = closes[i-1], curC = closes[i];
-        if (prevC >= out[i-1].lower && curC < out[i].lower) out[i].rawSignal = 'BUY'; // price falls below lower → bounce
-        if (prevC <= out[i-1].upper && curC > out[i].upper) out[i].rawSignal = 'SELL';
-      }
+  // Compute MAE for envelope using rolling window
+  for (let i = 0; i < n; i++) {
+    let sae = 0; let saeCount = 0;
+    const limit = Math.min(lookback, i);
+    for (let j = 0; j <= limit; j++) {
+      sae += Math.abs(closes[i-j] - out[i-j].nw); 
+      saeCount++;
+    }
+    const mae = saeCount > 0 ? (sae / saeCount) * mult : 0;
+    out[i].upper = out[i].nw + mae;
+    out[i].lower = out[i].nw - mae;
+      
+    // Crossing signals
+    if (i > 0 && out[i-1]) {
+      const prevC = closes[i-1], curC = closes[i];
+      if (prevC >= out[i-1].lower && curC < out[i].lower) out[i].rawSignal = 'BUY'; 
+      if (prevC <= out[i-1].upper && curC > out[i].upper) out[i].rawSignal = 'SELL';
     }
   }
   return out;
@@ -2523,6 +2791,13 @@ function clearChart() {
 
 function initChart() {
   const container = $('chartContainer');
+  if (!container) return;
+
+  // Ensure container has height
+  if (container.clientHeight < 100) {
+    container.style.height = (window.innerHeight - 200) + 'px';
+  }
+
   state.chart = LightweightCharts.createChart(container, {
     layout: {
       background: { type: 'solid', color: '#070810' },
@@ -2535,28 +2810,88 @@ function initChart() {
       horzLines: { color: 'rgba(255,255,255,0.04)' },
     },
     crosshair: {
-      vertLine: { color: 'rgba(129,140,248,0.4)', width: 1, style: 3 },
-      horzLine: { color: 'rgba(129,140,248,0.4)', width: 1, style: 3 },
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: { color: 'rgba(129,140,248,0.6)', width: 1, style: 0, labelBackgroundColor: '#1e1f3a' },
+      horzLine: { color: 'rgba(129,140,248,0.6)', width: 1, style: 0, labelBackgroundColor: '#1e1f3a' },
     },
-    rightPriceScale: { borderColor: 'rgba(255,255,255,0.06)' },
-    timeScale: { borderColor: 'rgba(255,255,255,0.06)', timeVisible: true },
+    rightPriceScale: {
+      borderColor: 'rgba(255,255,255,0.06)',
+      scaleMargins: { top: 0.1, bottom: 0.15 },
+      mode: LightweightCharts.PriceScaleMode.Normal,
+    },
+    timeScale: {
+      borderColor: 'rgba(255,255,255,0.06)',
+      timeVisible: true,
+      secondsVisible: false,
+      rightOffset: 12,
+      barSpacing: 8,
+      minBarSpacing: 1,
+      fixLeftEdge: false,
+      fixRightEdge: false,
+      lockVisibleTimeRangeOnResize: false,
+    },
+    handleScroll: {
+      mouseWheel: true,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: false,
+    },
+    handleScale: {
+      axisPressedMouseMove: { time: true, price: true },
+      axisDoubleClickReset: true,
+      mouseWheel: true,
+      pinch: true,
+    },
+    kineticScroll: {
+      mouse: true,
+      touch: true,
+    },
     width: container.clientWidth,
-    height: container.clientHeight,
+    height: container.clientHeight || (window.innerHeight - 200),
   });
 
   state.candleSeries = state.chart.addCandlestickSeries({
     upColor: '#22d3a0', downColor: '#f43f5e',
     borderUpColor: '#22d3a0', borderDownColor: '#f43f5e',
     wickUpColor: '#22d3a0', wickDownColor: '#f43f5e',
+    priceFormat: { type: 'price', precision: 6, minMove: 0.000001 },
   });
 
-  state.resizeObs = new ResizeObserver(entries => {
-    for (const e of entries) {
-      const { width, height } = e.contentRect;
-      if (state.chart) state.chart.resize(width, height);
-    }
+  // Volume series on separate pane
+  state.volumeSeries = state.chart.addHistogramSeries({
+    color: 'rgba(100,116,139,0.4)',
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+    scaleMargins: { top: 0.85, bottom: 0 },
+  });
+  state.chart.priceScale('volume').applyOptions({
+    scaleMargins: { top: 0.85, bottom: 0 },
+  });
+
+  // Responsive resize
+  state.resizeObs = new ResizeObserver(() => {
+    if (!state.chart || !container) return;
+    requestAnimationFrame(() => {
+      try {
+        state.chart.resize(container.clientWidth, container.clientHeight);
+      } catch(e) {}
+    });
   });
   state.resizeObs.observe(container);
+
+  // Keyboard controls
+  if (!state._keyHandler) {
+    state._keyHandler = (e) => {
+      if (!state.chart) return;
+      const ts = state.chart.timeScale();
+      if (e.key === '+' || e.key === '=') ts.setBarSpacing((ts.options?.barSpacing || 8) * 1.2);
+      if (e.key === '-') ts.setBarSpacing(Math.max(1, (ts.options?.barSpacing || 8) * 0.8));
+      if (e.key === 'ArrowLeft') ts.scrollToPosition((ts.scrollPosition?.() || 0) - 10);
+      if (e.key === 'ArrowRight') ts.scrollToPosition((ts.scrollPosition?.() || 0) + 10);
+      if (e.key === 'f' || e.key === 'F') ts.fitContent();
+    };
+    document.addEventListener('keydown', state._keyHandler);
+  }
 }
 
 function addLineSeries(chart, opts) {
@@ -2569,7 +2904,8 @@ async function loadChart(symbol, tf) {
   initChart();
 
   try {
-    const candles = await fetchKlines(symbol, tf, 500);
+    // Load 1500 candles for richer chart history
+    const candles = await fetchKlines(symbol, tf, 1500);
     state.candles  = candles;
     const closes   = candles.map(c => c.close);
 
@@ -2593,6 +2929,26 @@ async function loadChart(symbol, tf) {
 
     // Set candles
     state.candleSeries.setData(candles);
+
+    // ── Volume bars
+    if (state.volumeSeries) {
+      state.volumeSeries.setData(candles.map(c => ({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(34,211,160,0.35)' : 'rgba(244,63,94,0.35)'
+      })));
+    }
+
+    // Fit to last 200 bars by default (shows meaningful context)
+    setTimeout(() => {
+      if (state.chart) {
+        const ts = state.chart.timeScale();
+        ts.setVisibleLogicalRange({
+          from: Math.max(0, candles.length - 200),
+          to: candles.length - 1
+        });
+      }
+    }, 50);
 
     // ── UT Bot Trail
     if (toggles.UT) {
@@ -2784,8 +3140,6 @@ async function loadChart(symbol, tf) {
     } else {
       updateSidebar(candles, utArr, vrtArr, stArr, amcArr, seqArr, finalArr, atr14);
     }
-
-    state.chart.timeScale().fitContent();
 
     // Update header
     const ticker = await fetchTicker24h(symbol).catch(() => null);
@@ -3108,6 +3462,18 @@ function switchTab(id) {
   const pane = $(`tab-${id}`);
   if (pane) pane.classList.add('active');
   document.querySelector(`.nav-tab[data-tab="${id}"]`)?.classList.add('active');
+  // Fix: resize chart after it becomes visible so it renders correctly
+  if (id === 'chart' && state.chart) {
+    requestAnimationFrame(() => {
+      const container = $('chartContainer');
+      if (container && state.chart) {
+        try {
+          state.chart.resize(container.clientWidth, Math.max(container.clientHeight, 320));
+          state.chart.timeScale().fitContent();
+        } catch(e) {}
+      }
+    });
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3799,6 +4165,8 @@ async function loadChart(symbol, tf) {
     const amcArr = calcAMC(candles);
     const seqArr = calcSEQ(candles, ctx.atr);
     const finalArr = buildFinalAnalysis(candles, utArr, vrtArr, stArr, amcArr, seqArr, ctx);
+    const hpArr = toggles.HP ? calcHPChannel(candles, cfg.hpFast, cfg.hpSlow) : [];
+    const nwArr = toggles.NW ? calcNWEnvelope(candles, cfg.nwBandwidth, cfg.nwMult) : [];
 
     state.candleSeries.setData(candles);
 
@@ -3846,11 +4214,39 @@ async function loadChart(symbol, tf) {
     if (toggles.VRT) allMarkers.push(...buildVRTMarkers(candles, vrtArr, amcArr, seqArr));
     if (toggles.SUPER) allMarkers.push(...buildSTMarkers(candles, stArr));
     if (toggles.FINAL) allMarkers.push(...buildFinalMarkers(candles, finalArr));
+
+    if (toggles.HP && hpArr.length) {
+      const hpUpperLine = addLineSeries(state.chart, { color: 'rgba(56,189,248,0.7)', lineWidth: 1.5, title: 'HP Upper', priceLineVisible: false, lastValueVisible: false });
+      const hpLowerLine = addLineSeries(state.chart, { color: 'rgba(236,72,153,0.7)', lineWidth: 1.5, title: 'HP Lower', priceLineVisible: false, lastValueVisible: false });
+      hpUpperLine.setData(hpArr.map((h,i)=>h?{time:candles[i].time,value:h.upper}:null).filter(Boolean));
+      hpLowerLine.setData(hpArr.map((h,i)=>h?{time:candles[i].time,value:h.lower}:null).filter(Boolean));
+      state.series.hp = [hpUpperLine, hpLowerLine];
+      for (let i = 1; i < candles.length; i++) {
+        const h = hpArr[i]; if (!h?.rawSignal) continue;
+        allMarkers.push({ time: candles[i].time, position: h.rawSignal === 'BUY' ? 'belowBar' : 'aboveBar', color: h.rawSignal === 'BUY' ? '#2DD204' : '#D2042D', shape: h.rawSignal === 'BUY' ? 'arrowUp' : 'arrowDown', text: h.rawSignal === 'BUY' ? 'HP AL' : 'HP SAT', size: 1 });
+      }
+    }
+
+    if (toggles.NW && nwArr.length) {
+      const nwUpperLine = addLineSeries(state.chart, { color: 'rgba(45,210,4,0.7)', lineWidth: 1.5, title: 'NW Upper', priceLineVisible: false, lastValueVisible: false });
+      const nwLowerLine = addLineSeries(state.chart, { color: 'rgba(210,4,45,0.7)', lineWidth: 1.5, title: 'NW Lower', priceLineVisible: false, lastValueVisible: false });
+      nwUpperLine.setData(nwArr.map((n,i)=>n?{time:candles[i].time,value:n.upper}:null).filter(Boolean));
+      nwLowerLine.setData(nwArr.map((n,i)=>n?{time:candles[i].time,value:n.lower}:null).filter(Boolean));
+      state.series.nw = [nwUpperLine, nwLowerLine];
+      for (let i = 1; i < candles.length; i++) {
+        const e = nwArr[i]; if (!e?.rawSignal) continue;
+        allMarkers.push({ time: candles[i].time, position: e.rawSignal === 'BUY' ? 'belowBar' : 'aboveBar', color: e.rawSignal === 'BUY' ? '#0d9488' : '#e11d48', shape: e.rawSignal === 'BUY' ? 'arrowUp' : 'arrowDown', text: e.rawSignal === 'BUY' ? 'NW AL' : 'NW SAT', size: 1 });
+      }
+    }
+
     state.candleSeries.setMarkers(limitMarkersForMobile(mergeMarkers(allMarkers)));
 
     const lastTradeIdx = (() => {
       for (let i=finalArr.length-1;i>=0;i--) {
-        if (finalArr[i]?.trade && ['STRONG_BUY','BUY','STRONG_SELL','SELL','PULLBACK_LONG','PULLBACK_SHORT'].includes(finalArr[i].signal)) return i;
+        if (finalArr[i]?.trade && ['STRONG_BUY','BUY','STRONG_SELL','SELL','PULLBACK_LONG','PULLBACK_SHORT','PREP_LONG','PREP_SHORT'].includes(finalArr[i].signal)) return i;
+      }
+      for (let i=finalArr.length-1;i>=0;i--) {
+        if (finalArr[i]?.trade) return i;
       }
       return -1;
     })();
@@ -3884,8 +4280,6 @@ async function loadChart(symbol, tf) {
       $('chartChg').textContent=fmtPct(chgPct);
       $('chartChg').className=`chart-chg ${chgPct>=0?'pos':'neg'}`;
     }
-    const deriv = await fetchDerivatives(symbol).catch(()=>null);
-    updateDerivatives(ticker, deriv);
   } catch (err) {
     console.error('Chart load error:', err);
     alert('Grafik yüklenirken hata: ' + err.message);
@@ -3935,17 +4329,303 @@ function updateSidebar(candles, utArr, vrtArr, stArr, amcArr, seqArr, finalArr, 
   $('st-seq').className=`stat-val ${(seqDisplay??0)>=70?'bull':(seqDisplay??0)>=55?'warn':'bear'}`;
   $('st-atr').textContent=atr!=null?fmt(atr,4):'—';
 
-  const clearTP=()=>['tp-entry','tp-sl','tp-tp1','tp-tp2','tp-tp3','tp-rr'].forEach(id=>$(id).textContent='—');
+  const clearTP=()=>['tp-entry','tp-sl','tp-tp1','tp-tp2','tp-rr'].forEach(id=>$(id).textContent='—');
   if (state.analysisResult) {
     const tp=state.analysisResult, d=candles[last].close>100?2:4;
     $('tp-entry').textContent=`${fmt(tp.entryLow,d)} - ${fmt(tp.entryHigh,d)}`;
     $('tp-sl').textContent=fmt(tp.sl,d);
     $('tp-tp1').textContent=fmt(tp.tp1,d);
     $('tp-tp2').textContent=fmt(tp.tp2,d);
-    $('tp-tp3').textContent=fmt(tp.tp3,d);
+    if ($('tp-tp3')) $('tp-tp3').textContent=fmt(tp.tp3,d);
     $('tp-rr').textContent=tp.rr.toFixed(2)+'x';
   } else clearTP();
+
+  // Update Sinyalci Puanı
+  const scoreResult = calcSinyalciScore(ut, vrt, st, amc, seq, fin, state.analysisResult);
+  updateSinyalciScoreUI(scoreResult);
 }
+
+// ═══════════════════════════════════════════
+// SİNYALCİ PUANI ALGORİTMASI (0-100)
+// UT Bot(20) + VRT(18) + SuperTrend(15) + AMC(20) + SEQ(15) + R/R(8) + Piyasa(4) - Geç Giriş Cezası
+// ═══════════════════════════════════════════
+function calcSinyalciScore(ut, vrt, st, amc, seq, fin, tradePlan) {
+  const breakdown = {};
+  let total = 0;
+
+  // --- UT Bot Direction (0-20) ---
+  let utScore = 0;
+  if (ut?.direction === 1) utScore = 20;
+  else if (ut?.direction === -1) utScore = 0;
+  else utScore = 8; // neutral
+  breakdown.ut = { label: 'UT Bot', score: utScore, max: 20, positive: utScore >= 10 };
+  total += utScore;
+
+  // --- VRT Score (0-18) ---
+  let vrtScore = 0;
+  if (vrt?.direction === 1) {
+    vrtScore = vrt.regime === 'BREAKOUT' ? 18 : vrt.regime === 'TREND' ? 16 : vrt.regime === 'SQUEEZE_PREP' ? 14 : 12;
+  } else if (vrt?.direction === -1) {
+    vrtScore = 0;
+  } else {
+    vrtScore = vrt?.regime === 'CHOP' ? 3 : 7;
+  }
+  breakdown.vrt = { label: 'VRT', score: vrtScore, max: 18, positive: vrtScore >= 9 };
+  total += vrtScore;
+
+  // --- SuperTrend (0-15) ---
+  let stScore = 0;
+  if (st?.direction === 1) stScore = 15;
+  else if (st?.direction === -1) stScore = 0;
+  else stScore = 6;
+  breakdown.st = { label: 'SuperTrend', score: stScore, max: 15, positive: stScore >= 8 };
+  total += stScore;
+
+  // --- AMC Momentum (0-20) ---
+  const amcVal = amc ?? 50;
+  let amcScore = 0;
+  if (amcVal >= 70) amcScore = 20;
+  else if (amcVal >= 60) amcScore = 16;
+  else if (amcVal >= 55) amcScore = 13;
+  else if (amcVal >= 45) amcScore = 10;
+  else if (amcVal >= 35) amcScore = 5;
+  else amcScore = 0;
+  breakdown.amc = { label: 'AMC', score: amcScore, max: 20, positive: amcScore >= 10 };
+  total += amcScore;
+
+  // --- SEQ Setup Quality (0-15) ---
+  const seqVal = fin?.side === 'SHORT' ? (seq?.short?.score ?? 0) : (seq?.long?.score ?? seq?.score ?? 0);
+  let seqScore = 0;
+  if (seqVal >= 85) seqScore = 15;
+  else if (seqVal >= 75) seqScore = 12;
+  else if (seqVal >= 65) seqScore = 9;
+  else if (seqVal >= 55) seqScore = 6;
+  else if (seqVal >= 40) seqScore = 3;
+  else seqScore = 0;
+  breakdown.seq = { label: 'SEQ Kalite', score: seqScore, max: 15, positive: seqScore >= 8 };
+  total += seqScore;
+
+  // --- R/R Ratio (0-8) ---
+  const rr = tradePlan?.rr ?? 0;
+  let rrScore = 0;
+  if (rr >= 3.0) rrScore = 8;
+  else if (rr >= 2.5) rrScore = 7;
+  else if (rr >= 2.0) rrScore = 6;
+  else if (rr >= 1.8) rrScore = 5;
+  else if (rr >= 1.5) rrScore = 3;
+  else if (rr >= 1.0) rrScore = 1;
+  breakdown.rr = { label: 'R/R Oranı', score: rrScore, max: 8, positive: rrScore >= 4 };
+  total += rrScore;
+
+  // --- Market Regime Bonus (0-4) ---
+  const marketScore = (state.marketRegime?.score ?? 50) >= 62 ? 4 : (state.marketRegime?.score ?? 50) >= 50 ? 2 : 0;
+  breakdown.market = { label: 'Piyasa', score: marketScore, max: 4, positive: marketScore >= 2 };
+  total += marketScore;
+
+  // --- Late Entry Penalty (0 to -20) ---
+  const lateRisk = fin?.late?.score ?? 0;
+  let latePenalty = 0;
+  if (lateRisk >= 70) latePenalty = -20;
+  else if (lateRisk >= 55) latePenalty = -14;
+  else if (lateRisk >= 40) latePenalty = -8;
+  else if (lateRisk >= 25) latePenalty = -3;
+  breakdown.late = { label: 'Geç Risk', score: latePenalty, max: 0, positive: false, penalty: true };
+  total += latePenalty;
+
+  // Signal boost for strong signals
+  const signalBoost = ['STRONG_BUY','STRONG_SELL'].includes(fin?.signal) ? 5 : ['BUY','SELL'].includes(fin?.signal) ? 3 : 0;
+  breakdown.signal = { label: 'Sinyal', score: signalBoost, max: 5, positive: signalBoost > 0 };
+  total += signalBoost;
+
+  const finalScore = Math.max(0, Math.min(100, Math.round(total)));
+  let label = '—';
+  if (finalScore >= 85) label = '🔥 GÜÇLÜ FIRSAT';
+  else if (finalScore >= 70) label = '✅ İYİ KURULUM';
+  else if (finalScore >= 55) label = '🟡 NORMAL';
+  else if (finalScore >= 40) label = '⚠️ ZAYIF';
+  else label = '❌ OLUMSUZ';
+
+  return { score: finalScore, label, breakdown };
+}
+
+function updateSinyalciScoreUI(result) {
+  const valEl = $('sinyalciScoreVal');
+  const labelEl = $('sinyalciScoreLabel');
+  const barEl = $('sinyalciScoreBar');
+  const breakEl = $('sinyalciScoreBreakdown');
+  if (!valEl) return;
+
+  const s = result.score;
+  const color = s >= 80 ? '#22d3a0' : s >= 65 ? '#35e2b3' : s >= 50 ? '#f59e0b' : s >= 35 ? '#fb923c' : '#f43f5e';
+  valEl.textContent = s;
+  valEl.style.color = color;
+  labelEl.textContent = result.label;
+  labelEl.style.color = color;
+  barEl.style.width = s + '%';
+  barEl.style.background = `linear-gradient(90deg, ${color}, ${color}88)`;
+
+  if (breakEl) {
+    const bd = result.breakdown;
+    breakEl.innerHTML = Object.values(bd).map(b => {
+      const pos = b.penalty ? b.score < 0 : b.positive;
+      const c = b.penalty && b.score < 0 ? '#f43f5e' : pos ? '#22d3a0' : '#94a3b8';
+      return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="color:var(--text3)">${b.label}</span>
+        <span style="color:${c};font-weight:700;font-family:var(--mono)">${b.score > 0 ? '+' : ''}${b.score}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════════
+// UYUYAN COINLER SEKME TARAMASI
+// ═══════════════════════════════════════════
+async function runSleepingTabScan() {
+  const btn = $('sleepingTabScanBtn');
+  const list = $('sleepingTabList');
+  const statusDiv = $('sleepingTabStatus');
+  const progressBar = $('sleepingTabProgress');
+  const statusText = $('sleepingTabStatusText');
+  const timeEl = $('sleepingTabTime');
+  if (!btn || !list) return;
+  if (btn._scanning) return;
+  btn._scanning = true;
+  btn.disabled = true;
+  btn.textContent = '⏳ Tarıyor...';
+  if (statusDiv) statusDiv.style.display = 'flex';
+
+  list.innerHTML = '<div style="padding:20px;color:var(--text3);font-size:12px;text-align:center">🔍 Top 100 coin taranıyor...</div>';
+
+  const allSleepers = [];
+  try {
+    const tickers = await fetchAllTickers();
+    const top100 = tickers.slice(0, 100);
+    const tf = state.scanTf || '1h';
+    const scanTime = new Date();
+
+    for (let i = 0; i < top100.length; i++) {
+      const coin = top100[i];
+      if (progressBar) progressBar.style.width = ((i+1)/top100.length*100).toFixed(0) + '%';
+      if (statusText) statusText.textContent = `Tarıyor: ${coin.symbol} (${i+1}/${top100.length})`;
+
+      try {
+        const candles = await fetchKlines(coin.symbol, tf, 320, true);
+        if (candles.length < 220) continue;
+        const ctx = buildContext(candles);
+        const utArr = calcUTBot(candles, cfg.utSens, cfg.utAtr, cfg.utHa);
+        const vrtArr = calcVRT(candles);
+        const stArr = calcSuperTrend(candles, cfg.stAtr, cfg.stMult);
+        const amcArr = calcAMC(candles);
+        const seqArr = calcSEQ(candles, ctx.atr);
+        const finArr = buildFinalAnalysis(candles, utArr, vrtArr, stArr, amcArr, seqArr, ctx);
+        const sleepRes = calcSleepingScoreV5({coin, candles, ctx, utArr, vrtArr, stArr, amcArr, seqArr, finArr});
+
+        if (sleepRes.isSleeping) {
+          const last = candles.length - 1;
+          const scoreResult = calcSinyalciScore(utArr[last], vrtArr[last], stArr[last], amcArr[last], seqArr[last], finArr[last], sleepRes.trade);
+          allSleepers.push({
+            symbol: coin.symbol,
+            price: candles[last].close,
+            chgPct: parseFloat(coin.priceChangePercent),
+            volume: parseFloat(coin.quoteVolume),
+            sleepingScore: sleepRes.score,
+            sinyalciScore: scoreResult.score,
+            sinyalciLabel: scoreResult.label,
+            sinyalciBreakdown: scoreResult.breakdown,
+            seq: sleepRes.seq,
+            amc: sleepRes.amc,
+            rr: sleepRes.trade?.rr ?? 0,
+            lateRisk: Math.max(sleepRes.late?.score ?? 0, sleepRes.chase?.score ?? 0),
+            vrtReg: vrtArr[last]?.regime ?? '—',
+            tf,
+            scannedAt: scanTime
+          });
+        }
+      } catch(e) {}
+      await sleep(85);
+    }
+
+    // Sort by sinyalciScore descending
+    allSleepers.sort((a,b) => (b.sinyalciScore - a.sinyalciScore) || (b.sleepingScore - a.sleepingScore));
+    const top10 = allSleepers.slice(0, 10);
+
+    if (timeEl) {
+      timeEl.textContent = 'Tarandı: ' + scanTime.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+    }
+
+    if (!top10.length) {
+      list.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text3);gap:8px"><div style="font-size:36px;opacity:0.3">🌙</div><div style="font-size:12px">Şu an uygun uyuyan coin bulunamadı. 4s veya 12s zaman dilimini deneyin.</div></div>';
+    } else {
+      list.innerHTML = top10.map((r, idx) => {
+        const sColor = r.sinyalciScore >= 80 ? '#22d3a0' : r.sinyalciScore >= 65 ? '#35e2b3' : r.sinyalciScore >= 50 ? '#f59e0b' : '#f43f5e';
+        const lateColor = r.lateRisk >= 55 ? '#f43f5e' : r.lateRisk >= 35 ? '#f59e0b' : '#22d3a0';
+        const timeStr = r.scannedAt.toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.15s" class="sleeping-card-item" data-symbol="${r.symbol}"
+          onmouseover="this.style.borderColor='var(--prep2)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:28px;height:28px;background:rgba(124,140,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--prep);">${idx+1}</div>
+            <div style="flex:1">
+              <div style="font-family:var(--mono);font-weight:800;font-size:15px;color:var(--heading)">${r.symbol}</div>
+              <div style="font-size:10px;color:var(--text3)">${r.tf.toUpperCase()} · ${timeStr}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:${sColor}">${r.sinyalciScore}</div>
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase">Sinyalci Puanı</div>
+            </div>
+          </div>
+          <div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:10px">
+            <div style="height:100%;border-radius:3px;width:${r.sinyalciScore}%;background:linear-gradient(90deg,${sColor},${sColor}88)"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:10px">
+            <div style="background:var(--bg3);border-radius:8px;padding:6px;text-align:center">
+              <div style="color:var(--text3);margin-bottom:2px">Fiyat</div>
+              <div style="font-family:var(--mono);font-weight:700;color:var(--heading)">${fmt(r.price, r.price > 100 ? 2 : 4)}</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:8px;padding:6px;text-align:center">
+              <div style="color:var(--text3);margin-bottom:2px">24s %</div>
+              <div style="font-family:var(--mono);font-weight:700;color:${r.chgPct >= 0 ? 'var(--bull2)' : 'var(--bear)'}">${fmtPct(r.chgPct)}</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:8px;padding:6px;text-align:center">
+              <div style="color:var(--text3);margin-bottom:2px">R/R</div>
+              <div style="font-family:var(--mono);font-weight:700;color:var(--bull2)">${r.rr ? r.rr.toFixed(2)+'x' : '—'}</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:8px;padding:6px;text-align:center">
+              <div style="color:var(--text3);margin-bottom:2px">Geç Risk</div>
+              <div style="font-family:var(--mono);font-weight:700;color:${lateColor}">${r.lateRisk}%</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            <span style="background:rgba(124,140,255,0.12);border:1px solid rgba(124,140,255,0.25);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--prep)">Uyuyan ${r.sleepingScore}</span>
+            <span style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--bull2)">SEQ ${r.seq}</span>
+            <span style="background:var(--bg4);border:1px solid var(--border2);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text2)">${r.vrtReg}</span>
+            <span style="background:var(--bg4);border:1px solid var(--border2);border-radius:999px;padding:2px 8px;font-size:10px;color:var(--text2)">${fmtVol(r.volume)}</span>
+          </div>
+          <div style="font-size:10px;font-weight:700;margin-top:8px;color:${sColor}">${r.sinyalciLabel}</div>
+        </div>`;
+      }).join('');
+
+      // Click handlers
+      list.querySelectorAll('.sleeping-card-item').forEach(el => {
+        el.addEventListener('click', () => {
+          state.symbol = el.dataset.symbol;
+          if ($('symInput')) $('symInput').value = state.symbol;
+          switchTab('chart');
+          loadChart(state.symbol, state.tf);
+        });
+      });
+    }
+
+  } catch(e) {
+    list.innerHTML = '<div style="padding:20px;color:var(--bear);font-size:12px">Hata: ' + e.message + '</div>';
+  } finally {
+    btn._scanning = false;
+    btn.disabled = false;
+    btn.textContent = '⚡ Tara';
+    if (statusDiv) statusDiv.style.display = 'none';
+  }
+}
+
+
 
 async function loadMarketHealth() {
   try {
@@ -4109,7 +4789,11 @@ function renderSleepingTop5V5(items) {
   if (!top.length) { wrap.innerHTML = '<span class="sleeping-empty">Henüz uygun uyuyan setup bulunmadı. Daha geniş Top 100/200 veya 4s/12s deneyin.</span>'; return; }
   wrap.innerHTML = top.map(r => '<div class="sleeping-chip" data-symbol="' + r.symbol + '"><div class="sleeping-symbol">' + r.symbol + '</div><div class="sleeping-meta"><span>' + timeframeLabel(r.tf) + '</span><span class="sleeping-score">Uyuyan ' + r.sleepingScore + '</span><span>SEQ ' + r.seq + '</span><span>RR ' + (r.rr ? r.rr.toFixed(2)+'x' : '—') + '</span><span class="' + (r.chgPct >= 0 ? 'chg-pos':'chg-neg') + '">' + fmtPct(r.chgPct) + '</span></div></div>').join('');
   wrap.querySelectorAll('.sleeping-chip').forEach(chip => chip.addEventListener('click', () => {
-    state.symbol = chip.dataset.symbol; $('symInput').value = state.symbol; switchTab('chart'); loadChart(state.symbol, state.tf);
+    state.symbol = chip.dataset.symbol;
+    if ($('symInput')) $('symInput').value = state.symbol;
+    switchTab('chart');
+    loadChart(state.symbol, state.tf);
+    // scan results are preserved in state.scanResults
   }));
 }
 
@@ -4138,7 +4822,14 @@ function renderScanRow(r) {
     '<td style="color:' + (r.seq >= 76 ? 'var(--bull2)' : r.seq >= 60 ? 'var(--warn)' : 'var(--bear)') + '">' + r.seq + '</td>' +
     '<td class="tp-rr">' + (r.rr ? r.rr.toFixed(2)+'x' : '—') + '</td>' +
     '<td><span class="sig-badge ' + sigClass + '">' + (sigMap[r.signal] || r.signal) + '</span></td>';
-  tr.addEventListener('click', () => { state.symbol = r.symbol; $('symInput').value = r.symbol; switchTab('chart'); loadChart(state.symbol, state.tf); });
+  tr.addEventListener('click', () => {
+    // Save symbol, show chart but DON'T clear scan results
+    state.symbol = r.symbol;
+    if ($('symInput')) $('symInput').value = r.symbol;
+    switchTab('chart');
+    loadChart(state.symbol, state.tf);
+    // When user returns to scanner, results will still be in state.scanResults
+  });
   body.appendChild(tr);
 }
 
@@ -4455,8 +5146,40 @@ const NEXUS = (() => {
     sleeping: true,
   };
 
+  const LEGACY_RENDER_HOSTS = ['onrender.com'];
+  const WORKER_STORAGE_KEY = 'sinyalci_workerUrl';
+  const LEGACY_BACKEND_KEY = 'nexus_backendUrl';
+  const CANONICAL_BACKEND_URL =
+    (window.SINYALCI_CONFIG?.WORKER_URL || 'https://sinyalci-worker.succimer.workers.dev').replace(/\/$/, '');
+
+  function isLegacyBackendUrl(url) {
+    return typeof url === 'string' && LEGACY_RENDER_HOSTS.some(host => url.includes(host));
+  }
+
+  function persistBackendUrl(url) {
+    const normalized = (url || CANONICAL_BACKEND_URL).trim().replace(/\/$/, '');
+    localStorage.setItem(WORKER_STORAGE_KEY, normalized);
+    localStorage.setItem(LEGACY_BACKEND_KEY, normalized);
+    if (window.SINYALCI_CONFIG) window.SINYALCI_CONFIG.WORKER_URL = normalized;
+    return normalized;
+  }
+
+  function resolveBackendUrl() {
+    const storedWorker = localStorage.getItem(WORKER_STORAGE_KEY);
+    const storedLegacy = localStorage.getItem(LEGACY_BACKEND_KEY);
+
+    if (isLegacyBackendUrl(storedWorker)) localStorage.removeItem(WORKER_STORAGE_KEY);
+    if (isLegacyBackendUrl(storedLegacy)) localStorage.removeItem(LEGACY_BACKEND_KEY);
+
+    return persistBackendUrl(
+      (!isLegacyBackendUrl(storedWorker) && storedWorker) ||
+      (!isLegacyBackendUrl(storedLegacy) && storedLegacy) ||
+      CANONICAL_BACKEND_URL
+    );
+  }
+
   let alertCfg = { ...DEFAULT_ALERT_CFG, ...JSON.parse(localStorage.getItem(LS_ALERT_CFG) || '{}') };
-  let backendUrl = localStorage.getItem('nexus_backendUrl') || 'https://sinyalci-backend.onrender.com';
+  let backendUrl = resolveBackendUrl();
   let userId = localStorage.getItem('nexus_userId');
   let backendConnected = false;
 
@@ -5211,8 +5934,7 @@ const NEXUS = (() => {
     });
 
     $('backendConnectBtn')?.addEventListener('click', () => {
-      backendUrl = $('backendUrlInput')?.value?.trim() || 'https://sinyalci-backend.onrender.com';
-      localStorage.setItem('nexus_backendUrl', backendUrl);
+      backendUrl = persistBackendUrl($('backendUrlInput')?.value?.trim() || CANONICAL_BACKEND_URL);
       checkBackend();
     });
     $('registerDeviceBtn')?.addEventListener('click', registerDevice);
@@ -5271,7 +5993,11 @@ const PERF = (() => {
 
   async function load() {
     const userId = localStorage.getItem('nexus_userId') || '';
-    const backendUrl = localStorage.getItem('nexus_backendUrl') || 'https://sinyalci-backend.onrender.com';
+    const backendUrl =
+      localStorage.getItem('sinyalci_workerUrl') ||
+      localStorage.getItem('nexus_backendUrl') ||
+      window.SINYALCI_CONFIG?.WORKER_URL ||
+      'https://sinyalci-worker.succimer.workers.dev';
     const api = (p) => fetch(backendUrl + p).then(r => r.json()).catch(() => null);
 
     // 1. Overview
@@ -5429,5 +6155,297 @@ document.addEventListener('DOMContentLoaded', () => {
   PERF.init();
 });
 </script>
+
+<!-- ═══════════════════════════════════════════════════
+     WORKER — Cloudflare Worker Backend Entegrasyonu
+     Mock veri yok. Backend yoksa açıkça uyarır.
+     ═══════════════════════════════════════════════════ -->
+<script>
+const WORKER = (() => {
+  const LS_KEY = 'sinyalci_workerUrl';
+  const LEGACY_KEY = 'nexus_backendUrl';
+  const DEFAULT_URL =
+    (window.SINYALCI_CONFIG?.WORKER_URL || 'https://sinyalci-worker.succimer.workers.dev').replace(/\/$/, '');
+  const $ = id => document.getElementById(id);
+
+  // Eski Render URL'i temizle
+  const stored = localStorage.getItem(LS_KEY);
+  const storedLegacy = localStorage.getItem(LEGACY_KEY);
+  if (stored && stored.includes('onrender.com')) {
+    localStorage.removeItem(LS_KEY);
+  }
+  if (storedLegacy && storedLegacy.includes('onrender.com')) {
+    localStorage.removeItem(LEGACY_KEY);
+  }
+
+  let workerUrl = localStorage.getItem(LS_KEY) || localStorage.getItem(LEGACY_KEY) || DEFAULT_URL;
+  localStorage.setItem(LS_KEY, workerUrl);
+  localStorage.setItem(LEGACY_KEY, workerUrl);
+  let connected = false;
+  const logs = [];
+
+  function addLog(msg) {
+    const t = new Date().toLocaleTimeString('tr-TR');
+    logs.unshift(`[${t}] ${msg}`);
+    if (logs.length > 20) logs.length = 20;
+    const panel = $('backendLogPanel');
+    if (panel) panel.innerHTML = logs.map(l => `<div>${l}</div>`).join('');
+  }
+
+  function setStatus(dotId, textId, ok, msg) {
+    const dot = $(dotId), txt = $(textId);
+    if (dot) dot.className = 'status-dot ' + (ok ? 'ok' : 'err');
+    if (txt) txt.textContent = msg;
+  }
+
+  function setHeaderBadge(ok) {
+    const badge = $('backendStatusBadge');
+    if (!badge) return;
+    badge.className = 'hb-badge ' + (ok ? 'bull' : 'bear');
+    badge.innerHTML = `<span class="hb-dot">●</span> ${ok ? 'Bağlı' : 'Bağlı Değil'}`;
+  }
+
+  async function checkHealth() {
+    if (!workerUrl) {
+      setHeaderBadge(false);
+      setStatus('workerHealthDot', 'workerHealthText', false, 'Worker URL girilmedi');
+      addLog('Worker URL ayarlanmadı');
+      return false;
+    }
+
+    try {
+      addLog('Health check başlatılıyor...');
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const res = await fetch(workerUrl + '/api/health/', { signal: ctrl.signal, cache: 'no-store' });
+      clearTimeout(timer);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      connected = true;
+      setHeaderBadge(true);
+      setStatus('workerHealthDot', 'workerHealthText', true,
+        `✅ Bağlı — v${data.version || '?'} · ${new Date(data.time).toLocaleTimeString('tr-TR')}`);
+      addLog(`✅ API sağlıklı — v${data.version}`);
+
+      // DB status
+      setStatus('supabaseHealthDot', 'supabaseHealthText',
+        data.dbConnected,
+        data.dbConnected ? '✅ Supabase bağlı' : '❌ Supabase bağlantısı yok' + (data.dbError ? ': ' + data.dbError : ''));
+      addLog(data.dbConnected ? '✅ Supabase OK' : '❌ Supabase: ' + (data.dbError || 'hata'));
+
+      // Binance test
+      testBinance();
+
+      // Load cron state
+      loadCronState();
+
+      return true;
+    } catch (err) {
+      connected = false;
+      setHeaderBadge(false);
+      setStatus('workerHealthDot', 'workerHealthText', false,
+        err.name === 'AbortError' ? '⏱ Zaman aşımı (10s)' : '❌ ' + err.message);
+      addLog('❌ Health check başarısız: ' + err.message);
+      return false;
+    }
+  }
+
+  async function testBinance() {
+    try {
+      const res = await fetch(workerUrl + '/api/markets/top-volume?limit=1', { cache: 'no-store' });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setStatus('binanceHealthDot', 'binanceHealthText', true, '✅ Binance Futures erişilebilir');
+        addLog('✅ Binance OK');
+      } else {
+        setStatus('binanceHealthDot', 'binanceHealthText', false, '⚠️ Binance veri dönmedi');
+      }
+    } catch (e) {
+      setStatus('binanceHealthDot', 'binanceHealthText', false, '❌ Binance erişilemiyor');
+    }
+  }
+
+  async function loadCronState() {
+    // We check latest signal to infer cron activity
+    try {
+      const res = await fetch(workerUrl + '/api/signals/latest?limit=1', { cache: 'no-store' });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const t = new Date(data[0].created_at).toLocaleString('tr-TR');
+        setStatus('cronHealthDot', 'cronHealthText', true, '✅ Son tarama: ' + t);
+      } else {
+        setStatus('cronHealthDot', 'cronHealthText', false, 'Henüz sinyal kaydı yok');
+      }
+    } catch (e) {
+      setStatus('cronHealthDot', 'cronHealthText', false, 'Kontrol edilemedi');
+    }
+  }
+
+  async function loadSignals() {
+    const panel = $('backendSignalsList');
+    if (!workerUrl) {
+      if (panel) panel.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">Worker URL girilmedi — Backend sekmesinden URL ayarlayın.</div>';
+      return;
+    }
+    if (panel) panel.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px">⏳ Yükleniyor...</div>';
+    try {
+      const res = await fetch(workerUrl + '/api/signals/latest?limit=20', { cache: 'no-store' });
+      const data = await res.json();
+
+      // Update performance tab table too
+      updatePerfTable(data);
+
+      if (!Array.isArray(data) || data.length === 0) {
+        if (panel) panel.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">Henüz bu filtreye uygun gerçek backend sinyali yok.<br><small>Cron taramalar çalışmaya başlayınca sinyaller burada görünecek.</small></div>';
+        return;
+      }
+
+      const sigColors = { CONFIRMED_BUY: '#10b981', EARLY_ENTRY: '#f59e0b', PREPARE: '#818cf8', AVOID: '#f43f5e', EXIT: '#f43f5e', NEUTRAL: '#64748b' };
+      if (panel) panel.innerHTML = data.map(s => {
+        const t = new Date(s.created_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const color = sigColors[s.signal_type] || '#64748b';
+        const price = s.price_at_signal ? parseFloat(s.price_at_signal).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—';
+        const reasons = (s.reasons || []).slice(0, 2).join(' · ');
+        return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;gap:12px;align-items:flex-start">
+          <div style="min-width:70px;font-family:var(--mono);font-size:11px;font-weight:800;color:var(--heading)">${s.symbol}</div>
+          <div style="min-width:30px;font-size:10px;color:var(--text3);font-family:var(--mono)">${s.timeframe}</div>
+          <div style="flex:1">
+            <span style="background:${color}22;color:${color};border:1px solid ${color}44;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">${s.signal_type}</span>
+            <span style="font-size:10px;color:var(--text3);margin-left:6px">Güven: ${s.confidence}%</span>
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">${reasons}</div>
+          </div>
+          <div style="text-align:right;font-size:10px;color:var(--text3);min-width:80px">${price}<br>${t}</div>
+        </div>`;
+      }).join('');
+      addLog(`✅ ${data.length} sinyal yüklendi`);
+    } catch (err) {
+      if (panel) panel.innerHTML = `<div style="text-align:center;padding:24px;color:var(--bear);font-size:12px">❌ Sinyal yüklenemedi: ${err.message}</div>`;
+      addLog('❌ Sinyal yükleme hatası: ' + err.message);
+    }
+  }
+
+  function updatePerfTable(signals) {
+    const tbody = $('perfSignalTbody');
+    const count = $('perfSignalCount');
+    if (!tbody) return;
+    if (!Array.isArray(signals) || signals.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Backend sinyali yok — cron taramaları çalışmaya başlayınca burası dolacak.</td></tr>';
+      return;
+    }
+    if (count) count.textContent = signals.length + ' sinyal';
+    const sigColors = { CONFIRMED_BUY: 'var(--bull2)', EARLY_ENTRY: 'var(--warn)', PREPARE: 'var(--prep)', AVOID: 'var(--bear)', EXIT: 'var(--bear)', NEUTRAL: 'var(--text3)' };
+    const riskColors = { LOW: 'var(--bull2)', MEDIUM: 'var(--warn)', HIGH: 'var(--bear)' };
+    tbody.innerHTML = signals.map(s => {
+      const t = new Date(s.created_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const price = s.price_at_signal ? parseFloat(s.price_at_signal).toLocaleString('en-US', { maximumFractionDigits: 4 }) : '—';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.03)">
+        <td style="padding:8px 12px;color:var(--text3);font-size:10px">${t}</td>
+        <td style="padding:8px 12px;font-weight:800;color:var(--heading);font-family:var(--mono)">${s.symbol}</td>
+        <td style="padding:8px 12px;color:var(--text2);font-family:var(--mono)">${s.timeframe}</td>
+        <td style="padding:8px 12px"><span style="color:${sigColors[s.signal_type] || 'var(--text3)'}; font-weight:700;font-size:10px">${s.signal_type}</span></td>
+        <td style="padding:8px 12px;font-family:var(--mono);color:${s.confidence >= 75 ? 'var(--bull2)' : 'var(--warn)'}">${s.confidence}%</td>
+        <td style="padding:8px 12px;color:${riskColors[s.risk] || 'var(--text3)'}; font-size:10px;font-weight:700">${s.risk}</td>
+        <td style="padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--text2)">${price}</td>
+        <td style="padding:8px 12px;font-size:10px;color:var(--text3)">${s.source || 'backend'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function loadPerformance() {
+    if (!workerUrl) return;
+    const period = $('perfPeriodSelect')?.value || '30d';
+    try {
+      const res = await fetch(`${workerUrl}/api/performance/indicators?period=${period}`, { cache: 'no-store' });
+      const data = await res.json();
+      const grid = $('perfIndicatorGrid');
+      if (!grid) return;
+      if (!data.indicators || data.indicators.length === 0) {
+        grid.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;grid-column:1/-1">${data.message || 'Yeterli veri yok — sistem çalıştıkça bu bölüm dolacak.'}</div>`;
+        return;
+      }
+      grid.innerHTML = data.indicators.map(ind => `
+        <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:14px">
+          <div style="font-weight:700;font-size:12px;color:var(--heading);margin-bottom:8px">${ind.name}</div>
+          <div style="display:flex;gap:12px;font-size:11px">
+            <span style="color:var(--bull2)">Win: ${ind.winRate}%</span>
+            <span style="color:var(--text3)">${ind.signals} sinyal</span>
+            <span style="color:var(--prep)">Avg: ${ind.avgReturn}%</span>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">En iyi TF: ${ind.bestTimeframe}</div>
+        </div>`).join('');
+    } catch (e) {
+      addLog('❌ Performans yükleme hatası: ' + e.message);
+    }
+  }
+
+  // ─── Public API ─────────────────────────────────────────────────────────────
+
+  function workerConnect() {
+    const inp = $('workerUrlInput');
+    const msg = $('workerUrlMsg');
+    if (!inp) return;
+    const url = inp.value.trim().replace(/\/$/, '');
+    if (!url || !url.startsWith('http')) {
+      if (msg) { msg.style.color = 'var(--bear)'; msg.textContent = '❌ Geçerli bir URL girin (https://...)'; }
+      return;
+    }
+    workerUrl = url;
+    localStorage.setItem(LS_KEY, url);
+    localStorage.setItem(LEGACY_KEY, url);
+    if (window.SINYALCI_CONFIG) window.SINYALCI_CONFIG.WORKER_URL = url;
+    if (msg) { msg.style.color = 'var(--bull2)'; msg.textContent = '✅ URL kaydedildi — bağlanıyor...'; }
+    checkHealth().then(ok => {
+      if (ok) {
+        loadSignals();
+        if (msg) msg.textContent = '✅ Bağlantı başarılı!';
+      }
+    });
+  }
+
+  function init() {
+    // Restore saved URL
+    const inp = $('workerUrlInput');
+    if (inp && workerUrl) inp.value = workerUrl;
+
+    // Auto check on load if URL already saved
+    if (workerUrl) {
+      checkHealth().then(ok => { if (ok) loadSignals(); });
+    } else {
+      setHeaderBadge(false);
+      addLog('Worker URL ayarlanmadı. Backend sekmesinden URL girin.');
+    }
+
+    // Tab switch: load signals when switching to backend or performance tab
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (tab.dataset.tab === 'backend' && workerUrl) {
+          checkHealth().then(ok => { if (ok) loadSignals(); });
+        }
+        if (tab.dataset.tab === 'performance' && workerUrl) {
+          loadSignals();
+          loadPerformance();
+        }
+      });
+    });
+  }
+
+  // Expose globally for inline onclick handlers
+  window.workerConnect = workerConnect;
+  window.WORKER = { loadSignals, loadPerformance, checkHealth };
+
+  return { init, loadSignals, loadPerformance };
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+  WORKER.init();
+});
+</script>
+
+<!-- ── Disclaimer ── -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,16,0.85);backdrop-filter:blur(8px);border-top:1px solid rgba(99,102,241,0.12);padding:5px 16px;font-size:9px;color:rgba(148,163,184,0.55);text-align:center;z-index:999;font-family:var(--ui);letter-spacing:0.04em">
+  ⚠️ Bu panel eğitim ve risk analizi amaçlıdır. Sinyaller kesin kazanç garantisi vermez. Yatırım kararlarınızı kendi araştırmanıza dayandırın.
+</div>
 </body>
 </html>
